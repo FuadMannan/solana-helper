@@ -40,13 +40,19 @@ async function getFSWallets() {
   return wallets;
 }
 
-function getSolBalance(lamports) {
+function convertLamportsToSol(lamports) {
   return lamports / solWeb3.LAMPORTS_PER_SOL;
+}
+
+function convertSolToLamports(sol) {
+  return sol * solWeb3.LAMPORTS_PER_SOL;
 }
 
 async function getBalances(walletKeyPairs, conn) {
   const balancePromises = walletKeyPairs.map(async (wallet) => {
-    const balance = getSolBalance(await conn.getBalance(wallet.publicKey));
+    const balance = convertLamportsToSol(
+      await conn.getBalance(wallet.publicKey)
+    );
     console.log(`Balance for ${wallet.publicKey}: ${balance}`);
     return balance;
   });
