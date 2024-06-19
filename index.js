@@ -7,6 +7,10 @@ const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
 
+const CONN = new solWeb3.Connection(
+  solWeb3.clusterApiUrl('devnet'), 'confirmed'
+);
+
 async function getKeyPairFromFile(filename) {
   const keypairPath = path.resolve(WALLET_DIR + '\\' + filename);
   const keypairData = JSON.parse(await fsp.readFile(keypairPath, 'utf-8'));
@@ -41,8 +45,6 @@ async function getBalances(walletKeyPairs, conn) {
 }
 
 async function main() {
-  const conn = new solWeb3.Connection(
-    solWeb3.clusterApiUrl('devnet'), 'confirmed'
   );
   const walletKeyPairs = await getFSWallets();
   const balances = getBalances(walletKeyPairs, conn);
