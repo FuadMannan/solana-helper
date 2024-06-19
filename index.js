@@ -1,32 +1,50 @@
 const solWeb3 = require('@solana/web3.js');
 const splToken = require('@solana/spl-token');
 const bs58 = require('bs58');
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
 
-function getKeyPairFromFile(walletPath) {
-    const keypairPath = path.resolve(walletPath);
-    const keypairData = JSON.parse(fs.readFileSync(keypairPath, 'utf-8'));
-    const keypair = solWeb3.Keypair.fromSecretKey(Uint8Array.from(keypairData));
-    return keypair;
+async function getKeyPairFromFile(filename) {
+  const keypairPath = path.resolve(WALLET_DIR + '\\' + filename);
+  const keypairData = JSON.parse(await fs.readFile(keypairPath, 'utf-8'));
+  const keypair = solWeb3.Keypair.fromSecretKey(Uint8Array.from(keypairData));
+  return keypair;
+}
+
+async function getFSWallets() {
+  const files = await fs.readdir(WALLET_DIR);
+  const jsonFiles = files.filter(
+    (file) => path.extname(file).toLowerCase() === '.json'
+  );
+  const walletPromises = jsonFiles.map(async (file) => {
+    return getKeyPairFromFile(file);
+  });
+  const wallets = await Promise.all(walletPromises);
+  return wallets;
+}
+
+function getSolBalance(lamports) {
+  return lamports / solWeb3.LAMPORTS_PER_SOL;
+}
+
+async function getBalances(walletKeyPairs, conn) {
+  const balancePromises = walletKeyPairs.map(async (wallet) => {
+    const balance = getSolBalance(await conn.getBalance(wallet.publicKey));
+    console.log(`Balance for ${wallet.publicKey}: ${balance}`);
+    return balance;
+  });
+  const balances = await Promise.all(balancePromises);
+  return balances;
 }
 
 async function main() {
   const conn = new solWeb3.Connection(
     solWeb3.clusterApiUrl('devnet'), 'confirmed'
   );
-    const walletKeyPairs = {
-        0: getKeyPairFromFile('.\\wallets\\id.json'),
-        1: getKeyPairFromFile('.\\wallets\\t2.json')
-    };
-    let balances = {
-        0: await conn.getBalance(walletKeyPairs[0].publicKey),
-        1: await conn.getBalance(walletKeyPairs[1].publicKey)
-    };
-    console.log(`wallet 1: ${balances[0]/solWeb3.LAMPORTS_PER_SOL}`);
-    console.log(`wallet 2: ${balances[1]/solWeb3.LAMPORTS_PER_SOL}`);
+  const walletKeyPairs = await getFSWallets();
+  const balances = getBalances(walletKeyPairs, conn);
 }
 
 main();
