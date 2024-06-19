@@ -60,8 +60,21 @@ async function getBalances(walletKeyPairs, conn) {
   return balances;
 }
 
-async function main() {
+async function transferSol(fromKeypair, toKeypair, sol) {
+  const transferTransaction = new solWeb3.Transaction().add(
+    solWeb3.SystemProgram.transfer({
+      fromPubkey: fromKeypair.publicKey,
+      toPubkey: toKeypair.publicKey,
+      lamports: convertSolToLamports(sol)
+    })
   );
+  const result = await solWeb3.sendAndConfirmTransaction(
+    CONN, transferTransaction, [fromKeypair]
+  );
+  return result;
+}
+
+async function main() {
   const walletKeyPairs = await getFSWallets();
   const balances = getBalances(walletKeyPairs, conn);
 }
