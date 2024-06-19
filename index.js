@@ -11,6 +11,16 @@ const CONN = new solWeb3.Connection(
   solWeb3.clusterApiUrl('devnet'), 'confirmed'
 );
 
+function saveNewFSKeyPair() {
+  const keypair = solWeb3.Keypair.generate();
+  let filename = keypair.publicKey.toString();
+  fsp.writeFile(
+    `${WALLET_DIR.slice(2)}\\${filename}.json`,
+    `[${keypair.secretKey.toString()}]`
+  );
+  return keypair;
+}
+
 async function getKeyPairFromFile(filename) {
   const keypairPath = path.resolve(WALLET_DIR + '\\' + filename);
   const keypairData = JSON.parse(await fsp.readFile(keypairPath, 'utf-8'));
