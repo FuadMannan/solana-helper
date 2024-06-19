@@ -1,20 +1,21 @@
 const solWeb3 = require('@solana/web3.js');
 const splToken = require('@solana/spl-token');
 const bs58 = require('bs58');
-const fs = require('fs').promises;
+const fs = require('fs');
+const fsp = require('fs').promises;
 const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
 
 async function getKeyPairFromFile(filename) {
   const keypairPath = path.resolve(WALLET_DIR + '\\' + filename);
-  const keypairData = JSON.parse(await fs.readFile(keypairPath, 'utf-8'));
+  const keypairData = JSON.parse(await fsp.readFile(keypairPath, 'utf-8'));
   const keypair = solWeb3.Keypair.fromSecretKey(Uint8Array.from(keypairData));
   return keypair;
 }
 
 async function getFSWallets() {
-  const files = await fs.readdir(WALLET_DIR);
+  const files = await fsp.readdir(WALLET_DIR);
   const jsonFiles = files.filter(
     (file) => path.extname(file).toLowerCase() === '.json'
   );
