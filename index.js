@@ -28,8 +28,8 @@ async function getKeyPairFromFile(filename) {
   return keypair;
 }
 
-async function getFSWallets() {
-  const files = await fsp.readdir(WALLET_DIR);
+async function getFSWallets(directory = WALLET_DIR) {
+  const files = await fsp.readdir(directory);
   const jsonFiles = files.filter(
     (file) => path.extname(file).toLowerCase() === '.json'
   );
