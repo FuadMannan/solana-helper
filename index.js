@@ -54,7 +54,7 @@ async function getBalances(walletKeyPairs, conn) {
       await conn.getBalance(wallet.publicKey)
     );
     console.log(`Balance for ${wallet.publicKey}: ${balance}`);
-    return balance;
+    return { wallet: wallet, balance: balance };
   });
   const balances = await Promise.all(balancePromises);
   return balances;
@@ -76,7 +76,13 @@ async function transferSol(fromKeypair, toKeypair, sol) {
 
 async function main() {
   const walletKeyPairs = await getFSWallets();
-  const balances = getBalances(walletKeyPairs, conn);
+  const balances = await getBalances(walletKeyPairs, CONN)
+  balances.sort((a, b) => {
+    return b.balance - a.balance;
+  });
+  console.log(balances);
+  // let result = await transferSol(balances[0].wallet, balances[1].wallet, balances[0].balance - convertLamportsToSol(5000));
+  // console.log(result);
 }
 
 main();
