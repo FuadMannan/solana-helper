@@ -48,10 +48,10 @@ function convertSolToLamports(sol) {
   return sol * solWeb3.LAMPORTS_PER_SOL;
 }
 
-async function getBalances(walletKeyPairs, conn) {
+async function getBalances(walletKeyPairs) {
   const balancePromises = walletKeyPairs.map(async (wallet) => {
     const balance = convertLamportsToSol(
-      await conn.getBalance(wallet.publicKey)
+      await CONN.getBalance(wallet.publicKey)
     );
     console.log(`Balance for ${wallet.publicKey}: ${balance}`);
     return { wallet: wallet, balance: balance };
