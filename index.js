@@ -90,6 +90,22 @@ async function transferSol(fromKeypair, toKeypair, sol) {
   return result;
 }
 
+async function calculateTXFee(transaction) {
+  const blockhash = await CONN.getLatestBlockhash();
+  if (transaction.feePayer == null) {
+    transaction.feePayer = transaction.instructions[0].keys.filter(
+      (key) => key.isSigner
+    )[0].pubkey;
+  }
+  transaction.recentBlockhash = blockhash.blockhash;
+  try {
+    return await transaction.getEstimatedFee(CONN);
+  } catch (error) {
+    console.log(error);
+    return -1;
+  }
+}
+
 async function main() {
   const walletKeyPairs = await getFSWallets();
   const balances = await getBalances(walletKeyPairs, CONN)
