@@ -60,14 +60,30 @@ async function getBalances(walletKeyPairs, conn) {
   return balances;
 }
 
-async function transferSol(fromKeypair, toKeypair, sol) {
-  const transferTransaction = new solWeb3.Transaction().add(
+function createTXN(fromKeypair, toKeypair, sol) {
+  let txn = new solWeb3.Transaction();
+  return createTransferInstruction(txn, fromKeypair, toKeypair, sol);
+}
+
+function createTransferInstruction(txn, fromKeypair, toKeypair, sol) {
+  txn.add(
     solWeb3.SystemProgram.transfer({
       fromPubkey: fromKeypair.publicKey,
       toPubkey: toKeypair.publicKey,
       lamports: convertSolToLamports(sol)
     })
   );
+  return txn;
+}
+
+function replaceTransferInstruction(txn, fromKeypair, toKeypair, sol) {
+  txn.instructions.pop();
+  txn.createTransferInstruction(txn, fromKeypair, toKeypair, sol);
+  return txn;
+}
+
+async function transferSol(fromKeypair, toKeypair, sol) {
+  const transferTransaction = createTXN(fromKeypair, toKeypair, sol);
   const result = await solWeb3.sendAndConfirmTransaction(
     CONN, transferTransaction, [fromKeypair]
   );
