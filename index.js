@@ -181,6 +181,69 @@ async function calculateTXFee(transaction) {
   }
 }
 
+/**
+ * Creates new mint, associated token account, and mints tokens
+ * @param {solWeb3.Keypair} walletKeypair Payer of fees
+ * @param {solWeb3.PublicKey} freezeAuthority Public Key of freeze authority
+ * @param {number} decimals
+ * @param {solWeb3.keypair||undefined} newKeyPair Public key of mint, default to undefined for new random key
+ * @param {object} opt Options
+ * @param {number} amount Amount of tokens to be minted
+ * @returns {object}
+ */
+async function createMintToken(
+  walletKeypair,
+  freezeAuthority = null,
+  decimals,
+  newKeyPair = undefined,
+  opt = undefined,
+  amount = 1000000000
+) {
+  console.log(
+    `walletKeypair is keypair: ${(walletKeypair instanceof solWeb3.Keypair)}
+    \nwalletKeypair.publicKey is publicKey: ${(walletKeypair.publicKey instanceof solWeb3.PublicKey)}`
+  );
+  const mint = await splToken.createMint(
+    CONN,
+    walletKeypair,
+    walletKeypair.publicKey,
+    freezeAuthority.publicKey,
+    decimals,
+    newKeyPair,
+    opt,
+    splToken.TOKEN_PROGRAM_ID
+  );
+  const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+    CONN,
+    walletKeypair,
+    mint,
+    walletKeypair.publicKey
+  );
+  const signature = await splToken.mintTo(
+    CONN,
+    walletKeypair,
+    mint,
+    tokenAccount.address,
+    walletKeypair.publicKey,
+    amount
+  );
+  const result = {
+    mint: mint,
+    tokenAccount: tokenAccount,
+    signature: signature,
+  };
+  try {
+    const jsonResult = stringify(result);
+    await fsp.writeFile(
+      `${MINT_DIR.slice(2)}\\${result.mint.toString()}.json`,
+      jsonResult,
+    );
+  } catch (error) {
+    console.log(result);
+  }
+  return result;
+}
+
 async function main() {
   const walletKeyPairs = await getFSWallets();
   const balances = (await getBalances(walletKeyPairs, CONN)).sort((a, b) => {
