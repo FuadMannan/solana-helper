@@ -13,6 +13,10 @@ const CONN = new solWeb3.Connection(
   'confirmed'
 );
 
+function stringify(jsonObject) {
+  return JSON.stringify(jsonObject, (_, v) => typeof v === 'bigint' ? v.toString() : v)
+}
+
 /**
  * Creates new Keypair and saves to file system
  * @returns {solWeb3.Keypair} Keypair
