@@ -6,6 +6,7 @@ const fsp = require('fs').promises;
 const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
+const MINT_DIR = '.\\mints';
 
 const CONN = new solWeb3.Connection(
   solWeb3.clusterApiUrl('devnet'),
