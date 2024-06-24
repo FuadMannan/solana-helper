@@ -199,10 +199,6 @@ async function createMintToken(
   opt = undefined,
   amount = 1000000000
 ) {
-  console.log(
-    `walletKeypair is keypair: ${(walletKeypair instanceof solWeb3.Keypair)}
-    \nwalletKeypair.publicKey is publicKey: ${(walletKeypair.publicKey instanceof solWeb3.PublicKey)}`
-  );
   const mint = await splToken.createMint(
     CONN,
     walletKeypair,
@@ -242,6 +238,39 @@ async function createMintToken(
     console.log(result);
   }
   return result;
+}
+
+/**
+ *
+ * @param {solWeb3.Keypair} fromWallet Wallet of sender
+ * @param {solWeb3.PublicKey} mint Public key of token mint
+ * @param {solWeb3.PublicKey} toWallet Public key of wallet to receive token
+ * @param {number} amount Amount of token to send
+ * @returns {solWeb3.TransactionSignature}
+ */
+async function sendToken(fromWallet, mint, toWallet, amount) {
+  const fromTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+    CONN,
+    fromWallet,
+    mint,
+    fromWallet.publicKey
+  );
+  const toTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+    CONN,
+    toWallet,
+    mint,
+    toWallet.publicKey
+  );
+  const signature = await splToken.transfer(
+    CONN,
+    fromWallet,
+    fromTokenAccount.address,
+    toTokenAccount.address,
+    fromWallet.publicKey,
+    convertSolToLamports(amount)
+  );
+  console.log(`transaction signature: ${signature}`);
+  return signature;
 }
 
 async function main() {
