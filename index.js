@@ -273,6 +273,19 @@ async function sendToken(fromWallet, mint, toWallet, amount) {
   return signature;
 }
 
+/**
+ *
+ * @param {solWeb3.PublicKey} mintAddress Public key of token mint
+ * @returns {splToken.Mint} Mint info
+ */
+async function getTokenInfo(mintAddress) {
+  const mintInfo = await splToken.getMint(
+    CONN, mintAddress, splToken.TOKEN_PROGRAM_ID
+  );
+  console.log('Mint info:', stringify(mintInfo));
+  return mintInfo;
+}
+
 async function main() {
   const walletKeyPairs = await getFSWallets();
   const balances = (await getBalances(walletKeyPairs, CONN)).sort((a, b) => {
