@@ -317,6 +317,40 @@ async function closeAccount(
 }
 
 /**
+ * Close all token accounts of a given program ID for a wallet
+ * @param {solWeb3.Keypair} owner Wallet that owns token accounts
+ * @param {boolean} burn Burn all tokens in accounts with non-zero balance
+ * @param {solWeb3.PublicKey} program Program ID of accounts to search for
+ * @param {boolean} logToConsole Output success results to console
+ */
+async function closeAllTokenAccounts(owner, burn = true, program = splToken.TOKEN_PROGRAM_ID, logToConsole = true) {
+  let tokenAccounts = (await getTokenAccounts(owner.publicKey, program)).value;
+  const num = tokenAccounts.length;
+  let failures = 0;
+  if (!burn) {
+    tokenAccounts.filter(tokenAccount => tokenAccount.account.data.parsed.info.tokenAmount.uiAmount != 0);
+  }
+  tokenAccounts.forEach(async tokenAccount => {
+    try {
+      if (tokenAccount.account.data.parsed.info.tokenAmount.uiAmount > 0) {
+        const mint = new solWeb3.PublicKey(tokenAccount.account.data.parsed.info.mint);
+        await burnTokens(owner, tokenAccount.pubkey, mint, owner, 'all', false);
+      }
+      await closeAccount(tokenAccount.pubkey, owner, owner);
+    } catch (error) {
+      console.log(error);
+      ++failures;
+    }
+  });
+  if (logToConsole) console.log('Accounts closed:', num, ', failures:', failures);
+  const result = {
+    'closed': num,
+    'failures': failures
+  };
+  return result;
+}
+
+/**
  *
  * @param {solWeb3.Keypair} payer Fee payer
  * @param {solWeb3.PublicKey} tokenAccount Public key of token account
