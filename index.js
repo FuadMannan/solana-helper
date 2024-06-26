@@ -344,6 +344,16 @@ async function burnTokens(payer, tokenAccount, mint, owner, amount, logToConsole
   return tx;
 }
 
+/**
+ * Get all token accounts for an owner of a given program
+ * @param {solWeb3.PublicKey} owner Public key of owner
+ * @param {solWeb3.PublicKey} program Public key of program
+ * @returns Response and context
+ */
+async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
+  return await CONN.getParsedTokenAccountsByOwner(owner, { programId: program});
+}
+
 async function main() {
   const walletKeyPairs = await getFSWallets();
   const balances = (await getBalances(walletKeyPairs, CONN)).sort((a, b) => {
