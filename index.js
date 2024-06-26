@@ -86,12 +86,12 @@ function convertSolToLamports(sol) {
  * @param {Array<solWeb3.Keypair>} walletKeyPairs Array of keypairs
  * @returns {Array<object>} Array of objects containing a keypair and its balance
  */
-async function getBalances(walletKeyPairs) {
+async function getBalances(walletKeyPairs, logToConsole = true) {
   const balancePromises = walletKeyPairs.map(async (wallet) => {
     const balance = convertLamportsToSol(
       await CONN.getBalance(wallet.publicKey)
     );
-    console.log(`Balance for ${wallet.publicKey}: ${balance}`);
+    if (logToConsole) console.log(`Balance for ${wallet.publicKey}: ${balance}`);
     return { wallet: wallet, balance: balance };
   });
   const balances = await Promise.all(balancePromises);
@@ -248,7 +248,7 @@ async function createMintToken(
  * @param {number} amount Amount of token to send
  * @returns {solWeb3.TransactionSignature}
  */
-async function sendToken(fromWallet, mint, toWallet, amount) {
+async function sendToken(fromWallet, mint, toWallet, amount, logToConsole = true) {
   const fromTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
     CONN,
     fromWallet,
@@ -269,7 +269,7 @@ async function sendToken(fromWallet, mint, toWallet, amount) {
     fromWallet.publicKey,
     convertSolToLamports(amount)
   );
-  console.log(`transaction signature: ${signature}`);
+  if (logToConsole) console.log(`transaction signature: ${signature}`);
   return signature;
 }
 
@@ -278,11 +278,11 @@ async function sendToken(fromWallet, mint, toWallet, amount) {
  * @param {solWeb3.PublicKey} mintAddress Public key of token mint
  * @returns {splToken.Mint} Mint info
  */
-async function getTokenInfo(mintAddress) {
+async function getTokenInfo(mintAddress, logToConsole = true) {
   const mintInfo = await splToken.getMint(
     CONN, mintAddress, splToken.TOKEN_PROGRAM_ID
   );
-  console.log('Mint info:', stringify(mintInfo));
+  if (logToConsole) console.log('Mint info:', stringify(mintInfo));
   return mintInfo;
 }
 
