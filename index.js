@@ -286,6 +286,36 @@ async function getTokenInfo(mintAddress) {
   return mintInfo;
 }
 
+/**
+ *
+ * @param {solWeb3.PublicKey} tokenAccount Public key of token account to close
+ * @param {solWeb3.Keypair} destination Wallet to receive reclaimed rent
+ * @param {solWeb3.Keypair} authority Wallet that owns token account
+ * @returns {string} Transaction Signature
+ */
+async function closeAccount(
+  tokenAccount,
+  destination,
+  authority
+) {
+  const tx = new solWeb3.Transaction().add(
+    splToken.createCloseAccountInstruction(
+      tokenAccount,
+      destination.publicKey,
+      authority.publicKey
+    )
+  );
+  let result;
+  try {
+    result = await CONN.sendTransaction(tx, [destination, authority]);
+    console.log(result);
+  } catch (error) {
+    console.log(error);
+    result = null;
+  }
+  return result;
+}
+
 async function main() {
   const walletKeyPairs = await getFSWallets();
   const balances = (await getBalances(walletKeyPairs, CONN)).sort((a, b) => {
