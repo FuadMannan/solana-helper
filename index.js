@@ -316,6 +316,34 @@ async function closeAccount(
   return result;
 }
 
+/**
+ *
+ * @param {solWeb3.Keypair} payer Fee payer
+ * @param {solWeb3.PublicKey} tokenAccount Public key of token account
+ * @param {solWeb3.PublicKey} mint Public key of token mint
+ * @param {solWeb3.PublicKey||solWeb3.KeyPair} owner Public key/wallet of token account owner
+ * @param {number||string} amount Amount of tokens to burn
+ */
+async function burnTokens(payer, tokenAccount, mint, owner, amount, logToConsole = true) {
+  const mintInfo = await getTokenInfo(mint, false);
+  const decimals = mintInfo.decimals;
+  let newAmount = amount;
+  if (typeof amount === 'string') {
+    if (amount.toLowerCase().trim() === 'all') {
+      newAmount = (await CONN.getTokenAccountBalance(tokenAccount)).value.uiAmount;
+    }
+    if (!isNaN(Number(amount))) {
+      newAmount = Number(amount);
+    }
+  }
+  newAmount *= 10 ** decimals;
+  let tx = await splToken.burnChecked(
+    CONN, payer, tokenAccount, mint, owner, newAmount, decimals
+  );
+  if (logToConsole) console.log('Burn tokens hash:', tx);
+  return tx;
+}
+
 async function main() {
   const walletKeyPairs = await getFSWallets();
   const balances = (await getBalances(walletKeyPairs, CONN)).sort((a, b) => {
