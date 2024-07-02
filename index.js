@@ -7,14 +7,56 @@ const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
 const MINT_DIR = '.\\mints';
+const QUICKNODE_URL =
+  'ENTER URL HERE';
 
-const CONN = new solWeb3.Connection(
-  solWeb3.clusterApiUrl('devnet'),
-  'confirmed'
-);
+let PUB_CONN_MAIN, PUB_CONN_DEV, QUICKNODE_CONN_MAIN;
+
+/**
+ * Sets connection
+ * @param {number} choice 1: mainnet, 2: devnet, 3: quicknode mainnet
+ */
+function setConnection(choice) {
+  switch (choice) {
+    case 1:
+      if (!PUB_CONN_MAIN) {
+        PUB_CONN_MAIN = new solWeb3.Connection(
+          solWeb3.clusterApiUrl('mainnet-beta'),
+          'confirmed'
+        );
+      }
+      CONN = PUB_CONN_MAIN;
+      break;
+    case 2:
+      if (!PUB_CONN_DEV) {
+        PUB_CONN_DEV = new solWeb3.Connection(
+          solWeb3.clusterApiUrl('devnet'),
+          'confirmed'
+        );
+      }
+      CONN = PUB_CONN_DEV;
+      break;
+    case 3:
+      if (!QUICKNODE_CONN_MAIN) {
+        QUICKNODE_CONN_MAIN = new solWeb3.Connection(
+          QUICKNODE_URL,
+          'confirmed'
+        );
+      }
+      CONN = QUICKNODE_CONN_MAIN;
+      break;
+    default:
+      console.log('Incompatible choice');
+      break;
+  }
+}
+
+let CONN = setConnection(2);
 
 function stringify(jsonObject) {
-  return JSON.stringify(jsonObject, (_, v) => typeof v === 'bigint' ? v.toString() : v)
+  return JSON.stringify(jsonObject, (_, v) =>
+    typeof v === 'bigint' ? v.toString() : v
+  );
 }
 
 /**
@@ -91,7 +133,9 @@ async function getBalances(walletKeyPairs, logToConsole = true) {
     const balance = convertLamportsToSol(
       await CONN.getBalance(wallet.publicKey)
     );
-    if (logToConsole) console.log(`Balance for ${wallet.publicKey}: ${balance}`);
+    if (logToConsole) {
+      console.log(`Balance for ${wallet.publicKey}: ${balance}`);
+    }
     return { wallet: wallet, balance: balance };
   });
   const balances = await Promise.all(balancePromises);
@@ -248,7 +292,13 @@ async function createMintToken(
  * @param {number} amount Amount of token to send
  * @returns {solWeb3.TransactionSignature}
  */
-async function sendToken(fromWallet, mint, toWallet, amount, logToConsole = true) {
+async function sendToken(
+  fromWallet,
+  mint,
+  toWallet,
+  amount,
+  logToConsole = true
+) {
   const fromTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
     CONN,
     fromWallet,
@@ -280,7 +330,9 @@ async function sendToken(fromWallet, mint, toWallet, amount, logToConsole = true
  */
 async function getTokenInfo(mintAddress, logToConsole = true) {
   const mintInfo = await splToken.getMint(
-    CONN, mintAddress, splToken.TOKEN_PROGRAM_ID
+    CONN,
+    mintAddress,
+    splToken.TOKEN_PROGRAM_ID
   );
   if (logToConsole) console.log('Mint info:', stringify(mintInfo));
   return mintInfo;
@@ -293,11 +345,7 @@ async function getTokenInfo(mintAddress, logToConsole = true) {
  * @param {solWeb3.Keypair} authority Wallet that owns token account
  * @returns {string} Transaction Signature
  */
-async function closeAccount(
-  tokenAccount,
-  destination,
-  authority
-) {
+async function closeAccount(tokenAccount, destination, authority) {
   const tx = new solWeb3.Transaction().add(
     splToken.createCloseAccountInstruction(
       tokenAccount,
@@ -323,17 +371,27 @@ async function closeAccount(
  * @param {solWeb3.PublicKey} program Program ID of accounts to search for
  * @param {boolean} logToConsole Output success results to console
  */
-async function closeAllTokenAccounts(owner, burn = true, program = splToken.TOKEN_PROGRAM_ID, logToConsole = true) {
+async function closeAllTokenAccounts(
+  owner,
+  burn = true,
+  program = splToken.TOKEN_PROGRAM_ID,
+  logToConsole = true
+) {
   let tokenAccounts = (await getTokenAccounts(owner.publicKey, program)).value;
   const num = tokenAccounts.length;
   let failures = 0;
   if (!burn) {
-    tokenAccounts.filter(tokenAccount => tokenAccount.account.data.parsed.info.tokenAmount.uiAmount != 0);
+    tokenAccounts.filter(
+      (tokenAccount) =>
+        tokenAccount.account.data.parsed.info.tokenAmount.uiAmount != 0
+    );
   }
-  tokenAccounts.forEach(async tokenAccount => {
+  tokenAccounts.forEach(async (tokenAccount) => {
     try {
       if (tokenAccount.account.data.parsed.info.tokenAmount.uiAmount > 0) {
-        const mint = new solWeb3.PublicKey(tokenAccount.account.data.parsed.info.mint);
+        const mint = new solWeb3.PublicKey(
+          tokenAccount.account.data.parsed.info.mint
+        );
         await burnTokens(owner, tokenAccount.pubkey, mint, owner, 'all', false);
       }
       await closeAccount(tokenAccount.pubkey, owner, owner);
@@ -342,10 +400,12 @@ async function closeAllTokenAccounts(owner, burn = true, program = splToken.TOKE
       ++failures;
     }
   });
-  if (logToConsole) console.log('Accounts closed:', num, ', failures:', failures);
+  if (logToConsole) {
+    console.log('Accounts closed:', num, ', failures:', failures);
+  }
   const result = {
-    'closed': num,
-    'failures': failures
+    closed: num,
+    failures: failures,
   };
   return result;
 }
@@ -358,13 +418,21 @@ async function closeAllTokenAccounts(owner, burn = true, program = splToken.TOKE
  * @param {solWeb3.PublicKey||solWeb3.KeyPair} owner Public key/wallet of token account owner
  * @param {number||string} amount Amount of tokens to burn
  */
-async function burnTokens(payer, tokenAccount, mint, owner, amount, logToConsole = true) {
+async function burnTokens(
+  payer,
+  tokenAccount,
+  mint,
+  owner,
+  amount,
+  logToConsole = true
+) {
   const mintInfo = await getTokenInfo(mint, false);
   const decimals = mintInfo.decimals;
   let newAmount = amount;
   if (typeof amount === 'string') {
     if (amount.toLowerCase().trim() === 'all') {
-      newAmount = (await CONN.getTokenAccountBalance(tokenAccount)).value.uiAmount;
+      newAmount = (await CONN.getTokenAccountBalance(tokenAccount)).value
+        .uiAmount;
     }
     if (!isNaN(Number(amount))) {
       newAmount = Number(amount);
@@ -372,7 +440,13 @@ async function burnTokens(payer, tokenAccount, mint, owner, amount, logToConsole
   }
   newAmount *= 10 ** decimals;
   let tx = await splToken.burnChecked(
-    CONN, payer, tokenAccount, mint, owner, newAmount, decimals
+    CONN,
+    payer,
+    tokenAccount,
+    mint,
+    owner,
+    newAmount,
+    decimals
   );
   if (logToConsole) console.log('Burn tokens hash:', tx);
   return tx;
@@ -385,7 +459,9 @@ async function burnTokens(payer, tokenAccount, mint, owner, amount, logToConsole
  * @returns Response and context
  */
 async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
-  return await CONN.getParsedTokenAccountsByOwner(owner, { programId: program});
+  return await CONN.getParsedTokenAccountsByOwner(owner, {
+    programId: program,
+  });
 }
 
 async function main() {
