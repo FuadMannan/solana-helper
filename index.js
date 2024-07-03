@@ -469,9 +469,59 @@ async function main() {
   const balances = (await getBalances(walletKeyPairs, CONN)).sort((a, b) => {
     return b.balance - a.balance;
   });
-  console.log(balances);
+  // console.log(stringify(balances));
+
+  const mainWallet = balances[0].wallet;
+  const secondWallet = balances[1].wallet;
+
+  // TRANSFER SOL
   // let result = await transferSol(balances[0].wallet, balances[1].wallet, balances[0].balance - convertLamportsToSol(5000));
   // console.log(result);
+
+  // MINT TOKEN
+  // let result = await createMintToken(balances[0].wallet, balances[0].wallet, 9);
+  // console.log(result);
+  // console.log(JSON.stringify(result, (_, v) => typeof v === 'bigint' ? v.toString() : v));
+
+  // TRANSFER TOKEN
+  // const mint = new solWeb3.PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
+  // let result = await sendToken(secondWallet, mint, mainWallet, 1);
+  // console.log(result);
+
+  // GET TOKEN INFO
+  // const mintAddress = new solWeb3.PublicKey(
+  //   'ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b'
+  // );
+  // getTokenInfo(mintAddress)
+
+  // ADD METADATA
+  // const mint = new solWeb3.PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
+  // const wallet = await getKeyPairFromFile('id.json');
+  // let result = await addTokenMetadata(mint, wallet, wallet, wallet, 'TEST', 'TEST', 'https://pastebin.com/raw/2p2K6k1V', 420);
+  // console.log(result);
+
+  // CLOSE TOKEN ACCOUNT
+  // const mint = new solWeb3.PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
+  // const ataToClose = await splToken.getOrCreateAssociatedTokenAccount(
+  //   CONN, mainWallet, mint, mainWallet.publicKey
+  // );
+  // console.log(ataToClose.address.toString());
+  // let result = closeAccount(ataToClose.address, mainWallet, mainWallet);
+  // console.log(result);
+
+  // BURN TOKENS
+  // const tokenAcc = await splToken.getOrCreateAssociatedTokenAccount(
+  //   CONN, mainWallet, mintAddress, mainWallet.publicKey
+  // );
+  // let result = await burnTokens(mainWallet, tokenAcc.address, mintAddress, mainWallet, 'all');
+  // console.log(result);
+
+  // GET TOKEN ACCOUNTS
+  // let result = await getTokenAccounts(mainWallet.publicKey);
+  // console.log(stringify(result));
+
+  // CLOSE ALL TOKEN ACCOUNTS
+  // walletKeyPairs.forEach(async wallet => await closeAllTokenAccounts(wallet));
 }
 
 main();
