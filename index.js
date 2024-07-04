@@ -268,6 +268,24 @@ async function calculateTXFee(transaction) {
   }
 }
 
+/**
+ * Adds compute budget program instruction to a transaction
+ * @param {solWeb3.Transaction} tx Transaction to compute budget for
+ * @returns Transaction with compute budget program instruction
+ */
+async function addComputeBudgetToTransaction(tx) {
+  let budgetIx = solWeb3.ComputeBudgetProgram.setComputeUnitLimit({
+    units: 1.4e6,
+  });
+  let budgetTx = new solWeb3.Transaction().add(budgetIx, ...tx.instructions);
+  const computeBudget = (await CONN.simulateTransaction(tx)).value
+    .unitsConsumed;
+  budgetTx.instructions[0] = solWeb3.ComputeBudgetProgram.setComputeUnitLimit({
+    units: computeBudget + 100,
+  });
+  return budgetTx;
+}
+
 /*
  * TOKENS
  */
