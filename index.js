@@ -205,7 +205,7 @@ function createTXN(fromKeypair, toKeypairs, sol) {
  * @param {number} sol Amount of SOL being transferred
  * @returns {solWeb3.Transaction} Transaction object
  */
-function createTransferInstruction(txn, fromKeypair, toKeypair, sol) {
+function createAndAddTransferInstruction(txn, fromKeypair, toKeypair, sol) {
   txn.add(
     solWeb3.SystemProgram.transfer({
       fromPubkey: fromKeypair.publicKey,
@@ -226,11 +226,11 @@ function createTransferInstruction(txn, fromKeypair, toKeypair, sol) {
  */
 async function addTransferInstructions(txn, fromKeypair, toKeypairs, sol) {
   if (toKeypairs instanceof solWeb3.Keypair) {
-    return createTransferInstruction(txn, fromKeypair, toKeypairs, sol);
+    return createAndAddTransferInstruction(txn, fromKeypair, toKeypairs, sol);
   } else {
     toKeypairs.forEach(
       (keyPair) =>
-        (txn = createTransferInstruction(txn, fromKeypair, keyPair, sol))
+        (txn = createAndAddTransferInstruction(txn, fromKeypair, keyPair, sol))
     );
   }
   return txn;
