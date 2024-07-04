@@ -13,6 +13,10 @@ const QUICKNODE_URL =
 
 let PUB_CONN_MAIN, PUB_CONN_DEV, QUICKNODE_CONN_MAIN;
 
+/*
+ * UTILITIES
+ */
+
 /**
  * Sets connection
  * @param {number} choice 1: mainnet, 2: devnet, 3: quicknode mainnet
@@ -68,6 +72,28 @@ function saveToFile(content, filename = null, directory = SAVE_DIR) {
 }
 
 /**
+ * Convert lamports to SOL
+ * @param {number} lamports Amount of lamports to convert
+ * @returns {number} Amount of SOL
+ */
+function convertLamportsToSol(lamports) {
+  return lamports / solWeb3.LAMPORTS_PER_SOL;
+}
+
+/**
+ * Convert SOL to lamports
+ * @param {number} sol Amount of SOL to convert
+ * @returns {number} Amount of lamports
+ */
+function convertSolToLamports(sol) {
+  return sol * solWeb3.LAMPORTS_PER_SOL;
+}
+
+/**
+ * ACCOUNT INFO
+ */
+
+/**
  * Creates new Keypair and saves to file system
  * @returns {solWeb3.Keypair} Keypair
  */
@@ -110,24 +136,6 @@ async function getFSWallets(directory = WALLET_DIR) {
 }
 
 /**
- * Convert lamports to SOL
- * @param {number} lamports Amount of lamports to convert
- * @returns {number} Amount of SOL
- */
-function convertLamportsToSol(lamports) {
-  return lamports / solWeb3.LAMPORTS_PER_SOL;
-}
-
-/**
- * Convert SOL to lamports
- * @param {number} sol Amount of SOL to convert
- * @returns {number} Amount of lamports
- */
-function convertSolToLamports(sol) {
-  return sol * solWeb3.LAMPORTS_PER_SOL;
-}
-
-/**
  * Gets SOL balance for wallet keypairs
  * @async
  * @param {Array<solWeb3.Keypair>} walletKeyPairs Array of keypairs
@@ -146,6 +154,36 @@ async function getBalances(walletKeyPairs, logToConsole = true) {
   const balances = await Promise.all(balancePromises);
   return balances;
 }
+
+/**
+ *
+ * @param {solWeb3.PublicKey} tokenAccount Public key of token account to close
+ * @param {solWeb3.Keypair} destination Wallet to receive reclaimed rent
+ * @param {solWeb3.Keypair} authority Wallet that owns token account
+ * @returns {string} Transaction Signature
+ */
+async function closeAccount(tokenAccount, destination, authority) {
+  const tx = new solWeb3.Transaction().add(
+    splToken.createCloseAccountInstruction(
+      tokenAccount,
+      destination.publicKey,
+      authority.publicKey
+    )
+  );
+  let result;
+  try {
+    result = await CONN.sendTransaction(tx, [destination, authority]);
+    console.log(result);
+  } catch (error) {
+    console.log(error);
+    result = null;
+  }
+  return result;
+}
+
+/*
+* TRANSACTIONS
+*/
 
 /**
  * Creates Transaction object to transfer SOL from one account to another
@@ -229,6 +267,10 @@ async function calculateTXFee(transaction) {
     return -1;
   }
 }
+
+/*
+ * TOKENS
+ */
 
 /**
  * Creates new mint, associated token account, and mints tokens
@@ -341,32 +383,6 @@ async function getTokenInfo(mintAddress, logToConsole = true) {
   );
   if (logToConsole) console.log('Mint info:', stringify(mintInfo));
   return mintInfo;
-}
-
-/**
- *
- * @param {solWeb3.PublicKey} tokenAccount Public key of token account to close
- * @param {solWeb3.Keypair} destination Wallet to receive reclaimed rent
- * @param {solWeb3.Keypair} authority Wallet that owns token account
- * @returns {string} Transaction Signature
- */
-async function closeAccount(tokenAccount, destination, authority) {
-  const tx = new solWeb3.Transaction().add(
-    splToken.createCloseAccountInstruction(
-      tokenAccount,
-      destination.publicKey,
-      authority.publicKey
-    )
-  );
-  let result;
-  try {
-    result = await CONN.sendTransaction(tx, [destination, authority]);
-    console.log(result);
-  } catch (error) {
-    console.log(error);
-    result = null;
-  }
-  return result;
 }
 
 /**
