@@ -7,6 +7,7 @@ const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
 const MINT_DIR = '.\\mints';
+const SAVE_DIR = '.\\SavedFiles';
 const QUICKNODE_URL =
   'ENTER URL HERE';
 
@@ -59,6 +60,13 @@ function stringify(jsonObject) {
   );
 }
 
+function saveToFile(content, filename = null, directory = SAVE_DIR) {
+  let fn = !filename ? `${Date.now()}.json` : filename;
+  let ctx = !typeof content == 'string' ? stringify(content) : content;
+  let dir = directory.replace('.\\', '');
+  fsp.writeFile(`${dir}\\${fn}`, ctx);
+}
+
 /**
  * Creates new Keypair and saves to file system
  * @returns {solWeb3.Keypair} Keypair
@@ -66,10 +74,7 @@ function stringify(jsonObject) {
 function saveNewFSKeyPair() {
   const keypair = solWeb3.Keypair.generate();
   let filename = keypair.publicKey.toString();
-  fsp.writeFile(
-    `${WALLET_DIR.slice(2)}\\${filename}.json`,
-    `[${keypair.secretKey.toString()}]`
-  );
+  saveToFile(keypair.secretKey.toString(), filename, WALLET_DIR);
   return keypair;
 }
 
