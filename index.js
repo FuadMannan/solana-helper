@@ -217,6 +217,26 @@ function createTransferInstruction(txn, fromKeypair, toKeypair, sol) {
 }
 
 /**
+ * Helper function to add 1 or more transfer instructions to a transaction
+ * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
+ * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
+ * @param {solWeb3.Keypair} toKeypairs Address(es) receiving transaction(s)
+ * @param {number} sol Amount of SOL being transferred
+ * @returns {solWeb3.Transaction} Transaction object
+ */
+async function addTransferInstructions(txn, fromKeypair, toKeypairs, sol) {
+  if (toKeypairs instanceof solWeb3.Keypair) {
+    return createTransferInstruction(txn, fromKeypair, toKeypairs, sol);
+  } else {
+    toKeypairs.forEach(
+      (keyPair) =>
+        (txn = createTransferInstruction(txn, fromKeypair, keyPair, sol))
+    );
+  }
+  return txn;
+}
+
+/**
  * Helper function to replace transfer instruction for a transaction
  * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
  * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
