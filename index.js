@@ -188,13 +188,13 @@ async function closeAccount(tokenAccount, destination, authority) {
 /**
  * Creates Transaction object to transfer SOL from one account to another
  * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {solWeb3.Keypair} toKeypair Address receiving transaction
+ * @param {solWeb3.Keypair} toKeypairs Address receiving transaction
  * @param {number} sol Amount of SOL being transferred
  * @returns {solWeb3.Transaction} Transaction object
  */
-function createTXN(fromKeypair, toKeypair, sol) {
+function createTXN(fromKeypair, toKeypairs, sol) {
   let txn = new solWeb3.Transaction();
-  return createTransferInstruction(txn, fromKeypair, toKeypair, sol);
+  return addTransferInstructions(txn, fromKeypair, toKeypairs, sol);
 }
 
 /**
