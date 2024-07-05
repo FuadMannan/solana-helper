@@ -574,6 +574,9 @@ async function main() {
   const mainWallet = balances[0].wallet;
   const secondWallet = balances[1].wallet;
 
+  // CREATE ACCOUNT
+  // saveNewFSKeyPair()
+
   // TRANSFER SOL
   // let result = await transferSol(balances[0].wallet, balances[1].wallet, balances[0].balance - convertLamportsToSol(5000));
   // console.log(result);
@@ -622,6 +625,9 @@ async function main() {
 
   // CLOSE ALL TOKEN ACCOUNTS
   // walletKeyPairs.forEach(async wallet => await closeAllTokenAccounts(wallet));
+
+  // CREATE SEED ACCOUNT
+  // const newAccount = await createSeedAccounts(mainWallet, 10, 10);
 }
 
 main();
