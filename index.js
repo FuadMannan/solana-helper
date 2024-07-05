@@ -63,10 +63,19 @@ function stringify(jsonObject) {
 }
 
 function saveToFile(content, filename = null, directory = SAVE_DIR) {
-  let fn = !filename ? `${Date.now()}.json` : filename;
-  let ctx = !typeof content == 'string' ? stringify(content) : content;
-  let dir = directory.replace('.\\', '');
-  fsp.writeFile(`${dir}\\${fn}`, ctx);
+  filename = !filename ? `${Date.now()}.json` : filename;
+  const fullPath = `${directory.replace('.\\', '')}\\${filename}`;
+  let fileContent = content;
+  if (fs.existsSync(fullPath)) {
+    fileContent = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+    if (fileContent instanceof Array) {
+      fileContent = [...fileContent, content];
+    } else {
+      fileContent[`${Date.now()}`] = content;
+    }
+  }
+  fileContent = stringify(fileContent);
+  fsp.writeFile(fullPath, fileContent);
 }
 
 /**
