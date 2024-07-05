@@ -96,6 +96,21 @@ function convertSolToLamports(sol) {
   return sol * solWeb3.LAMPORTS_PER_SOL;
 }
 
+function createRandomSeed(length) {
+  let seed = crypto
+    .getRandomValues(new Uint8Array(length))
+    .map((x) => Math.round((x / 255) * 94) + 32);
+  return String.fromCharCode(...seed);
+}
+
+function createRandomSeeds(length, num) {
+  let result = [];
+  for (let index = 0; index < num; index++) {
+    result.push(createRandomSeed(length));
+  }
+  return result;
+}
+
 /**
  * ACCOUNT INFO
  */
