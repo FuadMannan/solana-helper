@@ -11,7 +11,7 @@ const SAVE_DIR = '.\\SavedFiles';
 const QUICKNODE_URL =
   'ENTER URL HERE';
 
-let PUB_CONN_MAIN, PUB_CONN_DEV, QUICKNODE_CONN_MAIN;
+let PUB_CONN_MAIN, PUB_CONN_DEV, QUICKNODE_CONN_MAIN, CONN;
 
 /*
  * UTILITIES
@@ -55,8 +55,6 @@ function setConnection(choice) {
       break;
   }
 }
-
-let CONN = setConnection(2);
 
 function stringify(jsonObject) {
   return JSON.stringify(jsonObject, (_, v) =>
@@ -524,6 +522,7 @@ async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
 }
 
 async function main() {
+  setConnection(/* Enter Choice */);
   const walletKeyPairs = await getFSWallets();
   const balances = (await getBalances(walletKeyPairs, CONN)).sort((a, b) => {
     return b.balance - a.balance;
