@@ -204,8 +204,8 @@ async function closeAccount(tokenAccount, destination, authority) {
   return result;
 }
 
-async function createSeedAccounts(baseAccount, length, amount) {
-  const seeds = createRandomSeeds(length, amount);
+async function createSeedAccounts(baseAccount, seedLength, numberOfAccounts) {
+  const seeds = createRandomSeeds(seedLength, numberOfAccounts);
   const key =
     baseAccount instanceof solWeb3.Keypair
       ? baseAccount.publicKey
