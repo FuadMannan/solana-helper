@@ -106,8 +106,8 @@ function convertSolToLamports(sol) {
  */
 function saveNewFSKeyPair() {
   const keypair = solWeb3.Keypair.generate();
-  let filename = keypair.publicKey.toString();
-  saveToFile(keypair.secretKey.toString(), filename, WALLET_DIR);
+  let filename = keypair.publicKey.toString() + '.json'
+  saveToFile(Array.from(keypair.secretKey), filename, WALLET_DIR);
   return keypair;
 }
 
