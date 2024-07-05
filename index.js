@@ -338,7 +338,8 @@ async function addComputeBudgetToTransaction(tx) {
     units: 1.4e6,
   });
   let budgetTx = new solWeb3.Transaction().add(budgetIx, ...tx.instructions);
-  const computeBudget = (await CONN.simulateTransaction(tx)).value
+  budgetTx.feePayer = tx.feePayer;
+  const computeBudget = (await CONN.simulateTransaction(budgetTx)).value
     .unitsConsumed;
   budgetTx.instructions[0] = solWeb3.ComputeBudgetProgram.setComputeUnitLimit({
     units: computeBudget + 100,
