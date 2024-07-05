@@ -8,6 +8,7 @@ const path = require('path');
 const WALLET_DIR = '.\\wallets';
 const MINT_DIR = '.\\mints';
 const SAVE_DIR = '.\\SavedFiles';
+const SEED_DIR = `${WALLET_DIR}\\seeds`
 const QUICKNODE_URL =
   'ENTER URL HERE';
 
@@ -201,6 +202,23 @@ async function closeAccount(tokenAccount, destination, authority) {
     result = null;
   }
   return result;
+}
+
+async function createSeedAccounts(baseAccount, length, amount) {
+  const seeds = createRandomSeeds(length, amount);
+  const key =
+    baseAccount instanceof solWeb3.Keypair
+      ? baseAccount.publicKey
+      : baseAccount;
+  let newAccounts = [];
+  const ID = solWeb3.SystemProgram.programId;
+  for (let i = 0; i < seeds.length; i++) {
+    const newAccount = await solWeb3.PublicKey.createWithSeed(key, seeds[i], ID);
+    newAccounts.push(newAccount);
+    console.log(newAccount);
+  };
+  saveToFile(newAccounts, `${baseAccount.publicKey}.json`, SEED_DIR);
+  return newAccounts;
 }
 
 /*
