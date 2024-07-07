@@ -63,16 +63,25 @@ function stringify(jsonObject) {
   );
 }
 
-function saveToFile(content, filename = null, directory = SAVE_DIR) {
+function saveToFile(
+  content,
+  filename = null,
+  directory = SAVE_DIR,
+  key = null
+) {
   filename = !filename ? `${Date.now()}.json` : filename;
   const fullPath = `${directory.replace('.\\', '')}\\${filename}`;
   let fileContent = content;
   if (fs.existsSync(fullPath)) {
     fileContent = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
-    if (fileContent instanceof Array) {
-      fileContent = [...fileContent, content];
+    if (!key) {
+      fileContent instanceof Array
+        ? (fileContent = [...fileContent, content])
+        : (fileContent[`${Date.now()}`] = content);
     } else {
-      fileContent[`${Date.now()}`] = content;
+      fileContent[key] instanceof Array
+        ? fileContent[key].push(content)
+        : (fileContent[key][`${Date.now()}`] = content);
     }
   }
   fileContent = stringify(fileContent);
@@ -217,7 +226,12 @@ async function createSeedAccounts(baseAccount, seedLength, numberOfAccounts) {
     newAccounts.push(newAccount);
     console.log(newAccount);
   };
-  saveToFile(newAccounts, `${baseAccount.publicKey}.json`, SEED_DIR);
+  saveToFile(
+    newAccounts,
+    `${baseAccount.publicKey}.json`,
+    SEED_DIR,
+    'createdWithSeed'
+  );
   return newAccounts;
 }
 
