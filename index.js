@@ -223,16 +223,64 @@ async function createSeedAccounts(baseAccount, seedLength, numberOfAccounts) {
   const ID = solWeb3.SystemProgram.programId;
   for (let i = 0; i < seeds.length; i++) {
     const newAccount = await solWeb3.PublicKey.createWithSeed(key, seeds[i], ID);
-    newAccounts.push(newAccount);
+    newAccounts.push({pubkey: newAccount, seed: seeds[i]});
     console.log(newAccount);
   };
   saveToFile(
-    newAccounts,
+    newAccounts.map((x) => x.pubkey),
     `${baseAccount.publicKey}.json`,
     SEED_DIR,
     'createdWithSeed'
   );
   return newAccounts;
+}
+
+async function createSeedAccountWithFunds(
+  baseAccount,
+  seedLength,
+  numberOfAccounts,
+  sol
+) {
+  const newAccounts = await createSeedAccounts(
+    baseAccount,
+    seedLength,
+    numberOfAccounts
+  );
+  let tx = new solWeb3.Transaction();
+  for (let i = 0; i < newAccounts.length; i++) {
+    const account = newAccounts[i];
+    tx.add(
+      solWeb3.SystemProgram.createAccountWithSeed({
+        fromPubkey: baseAccount.publicKey,
+        newAccountPubkey: account.pubkey,
+        basePubkey: baseAccount.publicKey,
+        seed: account.seed,
+        lamports: convertSolToLamports(sol),
+        space: 0,
+        programId: solWeb3.SystemProgram.programId,
+      })
+    );
+  }
+  tx.feePayer = baseAccount.publicKey;
+  tx = await addComputeBudgetToTransaction(tx);
+  const result = await solWeb3.sendAndConfirmTransaction(
+    CONN,
+    tx,
+    [baseAccount],
+    baseAccount
+  );
+  if (result) {
+    const fullPath = `${SEED_DIR.replace('.\\', '')}\\${
+      baseAccount.publicKey
+    }.json`;
+    let content = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+    const key = Object.keys(content.createdWithSeed).at(-1);
+    const newSeedAccounts = content.createdWithSeed[key];
+    delete content.createdWithSeed[key];
+    content.createdWithSeedAndFunds[key] = newSeedAccounts;
+    fsp.writeFile(fullPath, stringify(content));
+  }
+  return result;
 }
 
 /*
