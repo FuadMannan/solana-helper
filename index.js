@@ -240,6 +240,14 @@ async function createSeedAccounts(baseAccount, seedLength, numberOfAccounts) {
   return newAccounts;
 }
 
+/**
+ * Creates seed accounts with starting balance for a base account
+ * @param {solWeb3.Keypair} baseAccount Keypair/wallet of base account
+ * @param {number} seedLength Length of seed to generate
+ * @param {number} numberOfAccounts Number of accounts to create
+ * @param {number} sol Amount of Sol to transfer to seed accounts
+ * @returns {solWeb3.TransactionSignature}
+ */
 async function createSeedAccountWithFunds(
   baseAccount,
   seedLength,
@@ -247,7 +255,7 @@ async function createSeedAccountWithFunds(
   sol
 ) {
   const newAccounts = await createSeedAccounts(
-    baseAccount,
+    baseAccount.publicKey,
     seedLength,
     numberOfAccounts
   );
@@ -271,8 +279,7 @@ async function createSeedAccountWithFunds(
   const result = await solWeb3.sendAndConfirmTransaction(
     CONN,
     tx,
-    [baseAccount],
-    baseAccount
+    [baseAccount]
   );
   if (result) {
     const fullPath = `${SEED_DIR.replace('.\\', '')}\\${
