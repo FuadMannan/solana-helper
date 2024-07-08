@@ -57,12 +57,24 @@ function setConnection(choice) {
   }
 }
 
+/**
+ * Returns Stringified representation of objects, including BigInts
+ * @param {Object} jsonObject Any object
+ * @returns {string} Stringified representation of object
+ */
 function stringify(jsonObject) {
   return JSON.stringify(jsonObject, (_, v) =>
     typeof v === 'bigint' ? v.toString() : v
   );
 }
 
+/**
+ * Saves an object to a file
+ * @param {Object} content Any object
+ * @param {string} filename
+ * @param {string} directory
+ * @param {string} key JSON key to append object to
+ */
 function saveToFile(
   content,
   filename = null,
@@ -108,6 +120,11 @@ function convertSolToLamports(sol) {
   return sol * solWeb3.LAMPORTS_PER_SOL;
 }
 
+/**
+ * Generates random seed string
+ * @param {number} length
+ * @returns {string}
+ */
 function createRandomSeed(length) {
   let seed = crypto
     .getRandomValues(new Uint8Array(length))
@@ -115,6 +132,12 @@ function createRandomSeed(length) {
   return String.fromCharCode(...seed);
 }
 
+/**
+ * Returns array of random seed strings
+ * @param {number} length
+ * @param {number} num Amount of seeds to generate
+ * @returns {Array<string>}
+ */
 function createRandomSeeds(length, num) {
   let result = [];
   for (let index = 0; index < num; index++) {
