@@ -323,18 +323,6 @@ async function createSeedAccountWithFunds(
 */
 
 /**
- * Creates Transaction object to transfer SOL from one account to another
- * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {Array<solWeb3.PublicKey>} toPubKeys Public key(s) receiving transaction
- * @param {number} sol Amount of SOL being transferred
- * @returns {solWeb3.Transaction} Transaction object
- */
-async function createTXN(fromKeypair, toPubKeys, sol) {
-  let txn = new solWeb3.Transaction();
-  return await addTransferInstructions(txn, fromKeypair, toPubKeys, sol);
-}
-
-/**
  * Helper function to create transfer instruction for a transaction
  * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
  * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
@@ -367,6 +355,18 @@ async function addTransferInstructions(txn, fromKeypair, toPubKeys, sol) {
       (txn = createAndAddTransferInstruction(txn, fromKeypair, address, sol))
   );
   return txn;
+}
+
+/**
+ * Creates Transaction object to transfer SOL from one account to another
+ * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
+ * @param {Array<solWeb3.PublicKey>} toPubKeys Public key(s) receiving transaction
+ * @param {number} sol Amount of SOL being transferred
+ * @returns {solWeb3.Transaction} Transaction object
+ */
+async function createTXN(fromKeypair, toPubKeys, sol) {
+  let txn = new solWeb3.Transaction();
+  return await addTransferInstructions(txn, fromKeypair, toPubKeys, sol);
 }
 
 /**
