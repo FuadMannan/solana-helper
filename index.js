@@ -302,28 +302,28 @@ async function createSeedAccountWithFunds(
 /**
  * Creates Transaction object to transfer SOL from one account to another
  * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {solWeb3.Keypair} toKeypairs Address receiving transaction
+ * @param {solWeb3.Keypair} toPubKeys Public key(s) receiving transaction
  * @param {number} sol Amount of SOL being transferred
  * @returns {solWeb3.Transaction} Transaction object
  */
-function createTXN(fromKeypair, toKeypairs, sol) {
+function createTXN(fromKeypair, toPubKeys, sol) {
   let txn = new solWeb3.Transaction();
-  return addTransferInstructions(txn, fromKeypair, toKeypairs, sol);
+  return addTransferInstructions(txn, fromKeypair, toPubKeys, sol);
 }
 
 /**
  * Helper function to create transfer instruction for a transaction
  * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
  * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {solWeb3.Keypair} toKeypair Address receiving transaction
+ * @param {solWeb3.Keypair} toPubkey Public key receiving transaction
  * @param {number} sol Amount of SOL being transferred
  * @returns {solWeb3.Transaction} Transaction object
  */
-function createAndAddTransferInstruction(txn, fromKeypair, toKeypair, sol) {
+function createAndAddTransferInstruction(txn, fromKeypair, toPubkey, sol) {
   txn.add(
     solWeb3.SystemProgram.transfer({
       fromPubkey: fromKeypair.publicKey,
-      toPubkey: toKeypair.publicKey,
+      toPubkey: toPubkey,
       lamports: convertSolToLamports(sol),
     })
   );
@@ -334,17 +334,17 @@ function createAndAddTransferInstruction(txn, fromKeypair, toKeypair, sol) {
  * Helper function to add 1 or more transfer instructions to a transaction
  * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
  * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {solWeb3.Keypair} toKeypairs Address(es) receiving transaction(s)
+ * @param {solWeb3.Keypair} toPubKeys Public key(s) receiving transaction(s)
  * @param {number} sol Amount of SOL being transferred
  * @returns {solWeb3.Transaction} Transaction object
  */
-async function addTransferInstructions(txn, fromKeypair, toKeypairs, sol) {
-  if (toKeypairs instanceof solWeb3.Keypair) {
-    return createAndAddTransferInstruction(txn, fromKeypair, toKeypairs, sol);
+async function addTransferInstructions(txn, fromKeypair, toPubKeys, sol) {
+  if (toPubKeys instanceof solWeb3.Keypair) {
+    return createAndAddTransferInstruction(txn, fromKeypair, toPubKeys, sol);
   } else {
-    toKeypairs.forEach(
-      (keyPair) =>
-        (txn = createAndAddTransferInstruction(txn, fromKeypair, keyPair, sol))
+    toPubKeys.forEach(
+      (address) =>
+        (txn = createAndAddTransferInstruction(txn, fromKeypair, address, sol))
     );
   }
   return txn;
@@ -366,13 +366,13 @@ function replaceTransferInstruction(txn, fromKeypair, toKeypair, sol) {
 
 /**
  * Creates, sends, and confirms a SOL transfer transaction
- * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {solWeb3.Keypair} toKeypair Address receiving transaction
+ * @param {solWeb3.Keypair} fromKeypair Keypair/wallet transaction is sending from
+ * @param {solWeb3.PublicKey} toPubKey Public key of address receiving transaction
  * @param {number} sol Amount of SOL being transferred
  * @returns
  */
-async function transferSol(fromKeypair, toKeypair, sol) {
-  const transferTransaction = createTXN(fromKeypair, toKeypair, sol);
+async function transferSol(fromKeypair, toPubKey, sol) {
+  const transferTransaction = createTXN(fromKeypair, toPubKey, sol);
   const result = await solWeb3.sendAndConfirmTransaction(
     CONN,
     transferTransaction,
