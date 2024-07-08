@@ -444,6 +444,31 @@ async function addComputeBudgetToTransaction(tx) {
   return budgetTx;
 }
 
+/**
+ * Transfers Sol from a Seed account
+ * @param {solWeb3.Keypair} baseAccount Base account for seed account
+ * @param {solWeb3.PublicKey} fromPubKey Public Key of account sending Sol
+ * @param {string} seed Seed string
+ * @param {solWeb3.PublicKey} toPubKey
+ * @param {number} amount Amount of Sol to send
+ * @returns {solWeb3.TransactionSignature}
+ */
+async function transferSolFromSeedAccount (baseAccount, fromPubKey, seed, toPubKey, amount) {
+  const tx = new solWeb3.Transaction().add(
+    solWeb3.SystemProgram.transfer({
+      basePubkey: baseAccount.publicKey,
+      fromPubkey: fromPubKey,
+      lamports: convertSolToLamports(amount),
+      programId: solWeb3.SystemProgram.programId,
+      seed: seed,
+      toPubkey: toPubKey
+    })
+  );
+  const result = await solWeb3.sendAndConfirmTransaction(CONN, tx, [baseAccount]);
+  console.log(`tx hash: ${result}`);
+  return result;
+}
+
 /*
  * TOKENS
  */
