@@ -74,6 +74,7 @@ function saveToFile(
   let fileContent = content;
   if (fs.existsSync(fullPath)) {
     fileContent = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+    fs.writeFileSync(fullPath.replace('.json', '-copy.json'), stringify(fileContent));
     if (!key) {
       fileContent instanceof Array
         ? (fileContent = [...fileContent, content])
@@ -85,7 +86,8 @@ function saveToFile(
     }
   }
   fileContent = stringify(fileContent);
-  fsp.writeFile(fullPath, fileContent);
+  fs.writeFileSync(fullPath, fileContent);
+  fsp.unlink(fullPath.replace('.json', '-copy.json'));
 }
 
 /**
