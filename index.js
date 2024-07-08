@@ -215,22 +215,25 @@ async function closeAccount(tokenAccount, destination, authority) {
   return result;
 }
 
+/**
+ * Create accounts from base account with seed(s)
+ * @param {solWeb3.PublicKey} baseAccount Account generating seed
+ * @param {number} seedLength Length of seed(s) to be generated
+ * @param {number} numberOfAccounts Number of accounts to be created
+ * @returns {Array<Object>} Array of objects containing new public keys and associated seed
+ */
 async function createSeedAccounts(baseAccount, seedLength, numberOfAccounts) {
   const seeds = createRandomSeeds(seedLength, numberOfAccounts);
-  const key =
-    baseAccount instanceof solWeb3.Keypair
-      ? baseAccount.publicKey
-      : baseAccount;
   let newAccounts = [];
   const ID = solWeb3.SystemProgram.programId;
   for (let i = 0; i < seeds.length; i++) {
-    const newAccount = await solWeb3.PublicKey.createWithSeed(key, seeds[i], ID);
+    const newAccount = await solWeb3.PublicKey.createWithSeed(baseAccount, seeds[i], ID);
     newAccounts.push({pubkey: newAccount, seed: seeds[i]});
     console.log(newAccount);
   };
   saveToFile(
-    newAccounts.map((x) => x.pubkey),
-    `${baseAccount.publicKey}.json`,
+    newAccounts,
+    `${baseAccount}.json`,
     SEED_DIR,
     'createdWithSeed'
   );
