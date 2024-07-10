@@ -784,6 +784,35 @@ async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
   });
 }
 
+async function updateAuthority(
+  mint,
+  payer,
+  currentAuthority,
+  newAuthority,
+  authorityTypes
+) {
+  const tx = new solWeb3.Transaction();
+  authorityTypes.forEach(type => {
+    tx.add(
+      splToken.createSetAuthorityInstruction(
+        mint,
+        currentAuthority.publicKey,
+        type,
+        newAuthority,
+        [],
+        splToken.TOKEN_2022_PROGRAM_ID
+      )
+    );
+  });
+  const signature = await solWeb3.sendAndConfirmTransaction(
+    CONN,
+    tx,
+    payer == currentAuthority ? [payer] : [payer, currentAuthority]
+  );
+  console.log('Confirmation signature:', signature);
+  return signature;
+}
+
 async function main() {
   setConnection(/* Enter Choice */);
   const walletKeyPairs = await getFSWallets();
