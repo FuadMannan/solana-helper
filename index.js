@@ -828,13 +828,50 @@ async function main() {
   // saveNewFSKeyPair()
 
   // TRANSFER SOL
-  // let result = await transferSol(balances[0].wallet, balances[1].wallet, balances[0].balance - convertLamportsToSol(5000));
+  // let result = await transferSol(mainWallet, [new solWeb3.PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')], 5);
   // console.log(result);
 
   // MINT TOKEN
+  // V1
   // let result = await createMintToken(balances[0].wallet, balances[0].wallet, 9);
   // console.log(result);
   // console.log(JSON.stringify(result, (_, v) => typeof v === 'bigint' ? v.toString() : v));
+
+  // V2
+  // let result = await createToken2022(
+  //   mainWallet,
+  //   mainWallet,
+  //   mainWallet,
+  //   'TEST',
+  //   'TEST',
+  //   'https://pastebin.com/raw/eEvSrZ61',
+  //   'Test',
+  //   9,
+  //   true
+  // );
+  // console.log(result);
+
+  // UPDATE AUTHORITY
+  // const mint = new solWeb3.PublicKey(
+  //   '497jWQUNSLBjm9YUsix7SMajLSNp23cBN7WytrAFfByd'
+  // );
+  // let result = await updateAuthority(
+  //   mint,
+  //   secondWallet,
+  //   mainWallet,
+  //   secondWallet.publicKey,
+  //   [splToken.AuthorityType.MintTokens]
+  // );
+  // console.log(result);
+
+
+  // const seedTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  //   CONN,
+  //   mainWallet,
+  //   new solWeb3.PublicKey('4xA38i9HKnpkcpyrfpYmgfq2bTv5XiAugVuatBigKH8D'),
+  //   new solWeb3.PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')
+  // );
+  // console.log(seedTokenAccount);
 
   // TRANSFER TOKEN
   // const mint = new solWeb3.PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
@@ -877,7 +914,28 @@ async function main() {
   // walletKeyPairs.forEach(async wallet => await closeAllTokenAccounts(wallet));
 
   // CREATE SEED ACCOUNT
-  // const newAccount = await createSeedAccounts(mainWallet, 10, 10);
+  // const newAccount = await createSeedAccounts(mainWallet.publicKey, 10, 1);
+  // const newAccount = await createSeedAccountWithFunds(mainWallet, 10, 1, 0.1);
+
+  // TRANSFER SOL FROM SEED ACCOUNT
+  // const fromPubKey = new solWeb3.PublicKey('8ybYihLqh8CmE2YAL3R3bqg3Z3P8seUH2oAxk6vKju8S');
+  // const seed = `'!_S1KGFgj`;
+  // await transferSolFromSeedAccount(mainWallet, fromPubKey, seed, secondWallet, 0.1)
+
+  // RANDOM
+  // let onCurve = false;
+  // let pk;
+  // while (!onCurve) {
+  //   pk = await createSeedAccounts(mainWallet, 10, 1)[0];
+  //   onCurve = solWeb3.PublicKey.isOnCurve(pk);
+  // }
+  // const seedTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  //   CONN,
+  //   mainWallet,
+  //   new solWeb3.PublicKey('4xA38i9HKnpkcpyrfpYmgfq2bTv5XiAugVuatBigKH8D'),
+  //   new solWeb3.PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')
+  // );
+  // console.log(seedTokenAccount);
 }
 
 main();
