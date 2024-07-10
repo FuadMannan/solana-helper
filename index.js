@@ -1,5 +1,6 @@
 const solWeb3 = require('@solana/web3.js');
 const splToken = require('@solana/spl-token');
+const meta = require('@solana/spl-token-metadata');
 const bs58 = require('bs58');
 const fs = require('fs');
 const fsp = require('fs').promises;
@@ -484,6 +485,91 @@ async function transferSolFromSeedAccount (baseAccount, fromPubKey, seed, toPubK
 /*
  * TOKENS
  */
+
+// TOKEN-2022
+
+async function createToken2022(
+  payer,
+  mintAuthority,
+  updateAuthority,
+  name,
+  symbol,
+  uri,
+  description,
+  decimals,
+  freeze = false,
+  freezeAuthority = mintAuthority
+) {
+  CONN = new solWeb3.Connection(solWeb3.clusterApiUrl('devnet'));
+  const mintKeypair = saveNewFSKeyPair(2);
+  const mint = mintKeypair.publicKey;
+  const metaData = {
+    updateAuthority: updateAuthority.publicKey,
+    mint: mint,
+    name: name,
+    symbol: symbol,
+    uri: uri,
+    additionalMetadata: [['description', description]],
+  };
+
+  const metadataExtension = splToken.TYPE_SIZE + splToken.LENGTH_SIZE;
+  const metadataLen = meta.pack(metaData).length;
+  const mintLen = splToken.getMintLen([splToken.ExtensionType.MetadataPointer]);
+  const lamports = await CONN.getMinimumBalanceForRentExemption(
+    mintLen + metadataExtension + metadataLen
+  );
+
+  const createAccountInstruction = solWeb3.SystemProgram.createAccount({
+    fromPubkey: payer.publicKey,
+    newAccountPubkey: mint,
+    space: mintLen,
+    lamports,
+    programId: splToken.TOKEN_2022_PROGRAM_ID,
+  });
+
+  const initializeMetadataPointerInstruction =
+    splToken.createInitializeMetadataPointerInstruction(
+      mint,
+      updateAuthority.publicKey,
+      mint,
+      splToken.TOKEN_2022_PROGRAM_ID
+    );
+
+  const initializeMintInstruction = splToken.createInitializeMintInstruction(
+    mint,
+    decimals,
+    mintAuthority.publicKey,
+    freeze ? freezeAuthority.publicKey : null,
+    splToken.TOKEN_2022_PROGRAM_ID
+  );
+
+  const initializeMetadataInstruction = splToken.createInitializeInstruction({
+    programId: splToken.TOKEN_2022_PROGRAM_ID,
+    metadata: mint,
+    updateAuthority: updateAuthority.publicKey,
+    mint: mint,
+    mintAuthority: mintAuthority.publicKey,
+    name: metaData.name,
+    symbol: metaData.symbol,
+    uri: metaData.uri,
+  });
+
+  const transaction = new solWeb3.Transaction().add(
+    createAccountInstruction,
+    initializeMetadataPointerInstruction,
+    initializeMintInstruction,
+    initializeMetadataInstruction
+  );
+
+  const transactionSignature = await solWeb3.sendAndConfirmTransaction(
+    CONN,
+    transaction,
+    [payer, mintKeypair]
+  );
+
+  console.log(`Mint: ${mint}\nhttps://solana.fm/tx/${transactionSignature}`);
+  return transactionSignature;
+}
 
 /**
  * Creates new mint, associated token account, and mints tokens
