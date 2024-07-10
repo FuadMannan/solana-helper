@@ -157,12 +157,23 @@ function createRandomSeeds(length, num) {
 
 /**
  * Creates new Keypair and saves to file system
+ * @param {number} location choice of location
  * @returns {solWeb3.Keypair} Keypair
  */
-function saveNewFSKeyPair() {
+function saveNewFSKeyPair(location = 1) {
+  let directory;
+  switch (location) {
+    default:
+    case 1:
+      directory = WALLET_DIR;
+      break;
+    case 2:
+      directory = MINT_DIR;
+      break;
+  }
   const keypair = solWeb3.Keypair.generate();
   let filename = keypair.publicKey.toString() + '.json'
-  saveToFile(Array.from(keypair.secretKey), filename, WALLET_DIR);
+  saveToFile(Array.from(keypair.secretKey), filename, directory);
   return keypair;
 }
 
