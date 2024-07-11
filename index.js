@@ -489,6 +489,22 @@ async function transferSolFromSeedAccount (baseAccount, fromPubKey, seed, toPubK
 
 // TOKEN-2022
 
+/**
+ * Creates a Token-2022 mint
+ * @param {solWeb3.Keypair} payer
+ * @param {solWeb3.Keypair} mintAuthority
+ * @param {solWeb3.Keypair} updateAuthority
+ * @param {String} name
+ * @param {String} symbol
+ * @param {String} uri
+ * @param {String} description
+ * @param {number} decimals
+ * @param {boolean} freeze
+ * @param {solWeb3.Keypair} freezeAuthority
+ * @param {boolean} close
+ * @param {solWeb3.Keypair} closeAuthority
+ * @returns {solWeb3.TransactionSignature}
+ */
 async function createToken2022(
   payer,
   mintAuthority,
@@ -499,7 +515,9 @@ async function createToken2022(
   description,
   decimals,
   freeze = false,
-  freezeAuthority = mintAuthority
+  freezeAuthority = mintAuthority,
+  close = false,
+  closeAuthority = mintAuthority
 ) {
   CONN = new solWeb3.Connection(solWeb3.clusterApiUrl('devnet'));
   const mintKeypair = saveNewFSKeyPair(2);
@@ -515,7 +533,11 @@ async function createToken2022(
 
   const metadataExtension = splToken.TYPE_SIZE + splToken.LENGTH_SIZE;
   const metadataLen = meta.pack(metaData).length;
-  const mintLen = splToken.getMintLen([splToken.ExtensionType.MetadataPointer]);
+  const extensions = [splToken.ExtensionType.MetadataPointer];
+  if (close) {
+    extensions.push(splToken.ExtensionType.MintCloseAuthority);
+  }
+  const mintLen = splToken.getMintLen(extensions);
   const lamports = await CONN.getMinimumBalanceForRentExemption(
     mintLen + metadataExtension + metadataLen
   );
@@ -533,6 +555,13 @@ async function createToken2022(
       mint,
       updateAuthority.publicKey,
       mint,
+      splToken.TOKEN_2022_PROGRAM_ID
+    );
+
+  const initializeMintcloseAuthorityInstruction =
+    splToken.createInitializeMintCloseAuthorityInstruction(
+      mint,
+      closeAuthority.publicKey,
       splToken.TOKEN_2022_PROGRAM_ID
     );
 
@@ -558,6 +587,7 @@ async function createToken2022(
   const transaction = new solWeb3.Transaction().add(
     createAccountInstruction,
     initializeMetadataPointerInstruction,
+    initializeMintcloseAuthorityInstruction,
     initializeMintInstruction,
     initializeMetadataInstruction
   );
@@ -848,7 +878,10 @@ async function main() {
   //   'https://pastebin.com/raw/eEvSrZ61',
   //   'Test',
   //   9,
-  //   true
+  //   true,
+  //   mainWallet,
+  //   true,
+  //   mainWallet
   // );
   // console.log(result);
 
