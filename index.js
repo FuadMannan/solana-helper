@@ -8,6 +8,7 @@ const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
 const MINT_DIR = '.\\mints';
+const MINT_KEYPAIRS_DIR = `${MINT_DIR}\\keypairs`
 const SAVE_DIR = '.\\SavedFiles';
 const SEED_DIR = `${WALLET_DIR}\\seeds`
 const QUICKNODE_URL =
@@ -169,7 +170,7 @@ function saveNewFSKeyPair(location = 1) {
       directory = WALLET_DIR;
       break;
     case 2:
-      directory = MINT_DIR;
+      directory = MINT_KEYPAIRS_DIR;
       break;
   }
   const keypair = solWeb3.Keypair.generate();
