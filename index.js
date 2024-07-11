@@ -663,6 +663,71 @@ async function createAndMintOriginalToken(
 
 /**
  *
+ * @param {solWeb3.PublicKey} mintAddress Public key of token mint
+ * @returns {splToken.Mint} Mint info
+ */
+async function getTokenInfo(mintAddress, logToConsole = true) {
+  const mintInfo = await splToken.getMint(
+    CONN,
+    mintAddress,
+    splToken.TOKEN_PROGRAM_ID
+  );
+  if (logToConsole) console.log('Mint info:', stringify(mintInfo));
+  return mintInfo;
+}
+
+/**
+ * Get all token accounts for an owner of a given program
+ * @param {solWeb3.PublicKey} owner Public key of owner
+ * @param {solWeb3.PublicKey} program Public key of program
+ * @returns Response and context
+ */
+async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
+  return await CONN.getParsedTokenAccountsByOwner(owner, {
+    programId: program,
+  });
+}
+
+/**
+ * Updates 1 or more authority types for a token mint
+ * @param {solWeb3.PublicKey} mint Mint public key
+ * @param {solWeb3.Keypair} payer Payer wallet
+ * @param {solWeb3.Keypair} currentAuthority Current authority wallet
+ * @param {solWeb3.PublicKey||null} newAuthority New authority public key or null
+ * @param {Array<splToken.AuthorityType>} authorityTypes Array of authority types to update
+ * @returns {solWeb3.TransactionSignature} Transaction signature
+ */
+async function updateAuthority(
+  mint,
+  payer,
+  currentAuthority,
+  newAuthority,
+  authorityTypes
+) {
+  const tx = new solWeb3.Transaction();
+  authorityTypes.forEach(type => {
+    tx.add(
+      splToken.createSetAuthorityInstruction(
+        mint,
+        currentAuthority.publicKey,
+        type,
+        newAuthority,
+        [],
+        splToken.TOKEN_2022_PROGRAM_ID
+      )
+    );
+  });
+  const signature = await solWeb3.sendAndConfirmTransaction(
+    CONN,
+    tx,
+    payer == currentAuthority ? [payer] : [payer, currentAuthority]
+  );
+  console.log('Confirmation signature:', signature);
+  return signature;
+}
+
+/**
+ *
  * @param {solWeb3.Keypair} fromWallet Wallet of sender
  * @param {solWeb3.PublicKey} mint Public key of token mint
  * @param {solWeb3.PublicKey} toWallet Public key of wallet to receive token
@@ -698,21 +763,6 @@ async function sendToken(
   );
   if (logToConsole) console.log(`transaction signature: ${signature}`);
   return signature;
-}
-
-/**
- *
- * @param {solWeb3.PublicKey} mintAddress Public key of token mint
- * @returns {splToken.Mint} Mint info
- */
-async function getTokenInfo(mintAddress, logToConsole = true) {
-  const mintInfo = await splToken.getMint(
-    CONN,
-    mintAddress,
-    splToken.TOKEN_PROGRAM_ID
-  );
-  if (logToConsole) console.log('Mint info:', stringify(mintInfo));
-  return mintInfo;
 }
 
 /**
@@ -801,47 +851,6 @@ async function burnTokens(
   );
   if (logToConsole) console.log('Burn tokens hash:', tx);
   return tx;
-}
-
-/**
- * Get all token accounts for an owner of a given program
- * @param {solWeb3.PublicKey} owner Public key of owner
- * @param {solWeb3.PublicKey} program Public key of program
- * @returns Response and context
- */
-async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
-  return await CONN.getParsedTokenAccountsByOwner(owner, {
-    programId: program,
-  });
-}
-
-async function updateAuthority(
-  mint,
-  payer,
-  currentAuthority,
-  newAuthority,
-  authorityTypes
-) {
-  const tx = new solWeb3.Transaction();
-  authorityTypes.forEach(type => {
-    tx.add(
-      splToken.createSetAuthorityInstruction(
-        mint,
-        currentAuthority.publicKey,
-        type,
-        newAuthority,
-        [],
-        splToken.TOKEN_2022_PROGRAM_ID
-      )
-    );
-  });
-  const signature = await solWeb3.sendAndConfirmTransaction(
-    CONN,
-    tx,
-    payer == currentAuthority ? [payer] : [payer, currentAuthority]
-  );
-  console.log('Confirmation signature:', signature);
-  return signature;
 }
 
 async function main() {
