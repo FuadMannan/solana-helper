@@ -612,7 +612,7 @@ async function createToken2022(
  * @param {number} amount Amount of tokens to be minted
  * @returns {object}
  */
-async function createMintToken(
+async function createAndMintOriginalToken(
   walletKeypair,
   freezeAuthority = null,
   decimals,
@@ -864,7 +864,7 @@ async function main() {
 
   // MINT TOKEN
   // V1
-  // let result = await createMintToken(balances[0].wallet, balances[0].wallet, 9);
+  // let result = await createAndMintOriginalToken(balances[0].wallet, balances[0].wallet, 9);
   // console.log(result);
   // console.log(JSON.stringify(result, (_, v) => typeof v === 'bigint' ? v.toString() : v));
 
