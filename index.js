@@ -185,8 +185,8 @@ function saveNewFSKeyPair(location = 1) {
  * @param {string} filename Name of file with keypair
  * @returns {solWeb3.Keypair} Keypair
  */
-async function getKeyPairFromFile(filename) {
-  const keypairPath = path.resolve(WALLET_DIR + '\\' + filename);
+async function getKeyPairFromFile(filename, directory = WALLET_DIR) {
+  const keypairPath = path.resolve(directory + '\\' + filename);
   const keypairData = JSON.parse(await fsp.readFile(keypairPath, 'utf-8'));
   const keypair = solWeb3.Keypair.fromSecretKey(Uint8Array.from(keypairData));
   return keypair;
