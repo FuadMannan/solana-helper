@@ -769,6 +769,34 @@ async function updateAuthority(
 }
 
 /**
+ * Updates metadata for Token2022
+ * @param {solWeb3.Keypair} payer Fee payer
+ * @param {solWeb3.PublicKey} mint Mint public key
+ * @param {solWeb3.Keypair||solWeb3.PublicKey} updateAuthority Update authority
+ * @param {string} field field to update
+ * @param {string} value value to update with
+ * @returns {solWeb3.TransactionSignature}
+ */
+async function updateToken2022Metadata(
+  payer,
+  mint,
+  updateAuthority,
+  field,
+  value
+) {
+  const result = await splToken.tokenMetadataUpdateFieldWithRentTransfer(
+    CONN,
+    payer,
+    mint,
+    updateAuthority,
+    field,
+    value
+  );
+  console.log(result);
+  return result;
+}
+
+/**
  *
  * @param {solWeb3.Keypair} fromWallet Wallet of sender
  * @param {solWeb3.PublicKey} mint Public key of token mint
