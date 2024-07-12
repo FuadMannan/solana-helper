@@ -8,7 +8,8 @@ const path = require('path');
 
 const WALLET_DIR = '.\\wallets';
 const MINT_DIR = '.\\mints';
-const MINT_KEYPAIRS_DIR = `${MINT_DIR}\\keypairs`
+const MINT_KEYPAIRS_DIR = `${MINT_DIR}\\keypairs`;
+const MINT_RESULTS_DIR = `${MINT_DIR}\\mint-results`;
 const SAVE_DIR = '.\\SavedFiles';
 const SEED_DIR = `${WALLET_DIR}\\seeds`
 const QUICKNODE_URL =
@@ -600,6 +601,47 @@ async function createToken2022(
 
   console.log(`Mint: ${mint}\nhttps://solana.fm/tx/${transactionSignature}`);
   return transactionSignature;
+}
+
+/**
+ * Mints tokens from Token2022 program to a wallet
+ * @param {solWeb3.PublicKey} mint Mint public key
+ * @param {solWeb3.Keypair} authority Mint authority keypair
+ * @param {solWeb3.Keypair} destination Target wallet
+ * @param {number} amount Amount of token to mint
+ * @returns {solWeb3.TransactionSignature}
+ */
+async function mintToken2022(mint, authority, destination, amount) {
+ const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  CONN,
+  destination,
+  mint,
+  destination.publicKey,
+  false,
+  'confirmed',
+  {},
+  splToken.TOKEN_2022_PROGRAM_ID
+ );
+ amount = convertSolToLamports(amount);
+ const signature = await splToken.mintTo(
+  CONN,
+  destination,
+  mint,
+  tokenAccount.address,
+  authority,
+  amount,
+  [],
+  {},
+  splToken.TOKEN_2022_PROGRAM_ID
+ );
+ const result = {
+  mint: mint,
+  tokenAccount: tokenAccount,
+  signature: signature,
+};
+saveToFile(result, mint.toString(), MINT_RESULTS_DIR);
+console.log(result);
+return result;
 }
 
 /**
