@@ -1,10 +1,42 @@
-const solWeb3 = require('@solana/web3.js');
-const splToken = require('@solana/spl-token');
-const meta = require('@solana/spl-token-metadata');
-const bs58 = require('bs58');
-const fs = require('fs');
-const fsp = require('fs').promises;
-const path = require('path');
+import {
+  clusterApiUrl,
+  ComputeBudgetProgram,
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  Transaction,
+  sendAndConfirmTransaction,
+  SystemProgram,
+} from '@solana/web3.js';
+import('@solana/web3.js').TransactionSignature;
+import {
+  AuthorityType,
+  burnChecked,
+  closeAccount,
+  createCloseAccountInstruction,
+  createInitializeInstruction,
+  createInitializeMetadataPointerInstruction,
+  createInitializeMintInstruction,
+  createInitializeMintCloseAuthorityInstruction,
+  createMint,
+  createSetAuthorityInstruction,
+  ExtensionType,
+  getAssociatedTokenAddress,
+  getMintLen,
+  getMint,
+  getOrCreateAssociatedTokenAccount,
+  LENGTH_SIZE,
+  mintTo,
+  tokenMetadataUpdateFieldWithRentTransfer,
+  TOKEN_2022_PROGRAM_ID,
+  transfer,
+  TYPE_SIZE,
+} from '@solana/spl-token';
+import { pack } from '@solana/spl-token-metadata';
+import { existsSync, writeFileSync, readFileSync } from 'fs';
+import { unlink, readFile, readdir, writeFile } from 'fs/promises';
+import { extname, resolve } from "path";
 
 const WALLET_DIR = '.\\wallets';
 const MINT_DIR = '.\\mints';
@@ -29,8 +61,8 @@ function setConnection(choice) {
   switch (choice) {
     case 1:
       if (!PUB_CONN_MAIN) {
-        PUB_CONN_MAIN = new solWeb3.Connection(
-          solWeb3.clusterApiUrl('mainnet-beta'),
+        PUB_CONN_MAIN = new Connection(
+          clusterApiUrl('mainnet-beta'),
           'confirmed'
         );
       }
@@ -38,8 +70,8 @@ function setConnection(choice) {
       break;
     case 2:
       if (!PUB_CONN_DEV) {
-        PUB_CONN_DEV = new solWeb3.Connection(
-          solWeb3.clusterApiUrl('devnet'),
+        PUB_CONN_DEV = new Connection(
+          clusterApiUrl('devnet'),
           'confirmed'
         );
       }
@@ -47,7 +79,7 @@ function setConnection(choice) {
       break;
     case 3:
       if (!QUICKNODE_CONN_MAIN) {
-        QUICKNODE_CONN_MAIN = new solWeb3.Connection(
+        QUICKNODE_CONN_MAIN = new Connection(
           QUICKNODE_URL,
           'confirmed'
         );
@@ -87,9 +119,9 @@ function saveToFile(
   filename = !filename ? `${Date.now()}.json` : filename;
   const fullPath = `${directory.replace('.\\', '')}\\${filename}`;
   let fileContent = content;
-  if (fs.existsSync(fullPath)) {
-    fileContent = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
-    fs.writeFileSync(
+  if (existsSync(fullPath)) {
+    fileContent = JSON.parse(readFileSync(fullPath, 'utf-8'));
+    writeFileSync(
       fullPath.replace('.json', '-copy.json'),
       stringify(fileContent)
     );
@@ -104,9 +136,9 @@ function saveToFile(
     }
   }
   fileContent = stringify(fileContent);
-  fs.writeFileSync(fullPath, fileContent);
-  if (fs.existsSync(fullPath.replace('.json', '-copy.json'))) {
-    fsp.unlink(fullPath.replace('.json', '-copy.json'));
+  writeFileSync(fullPath, fileContent);
+  if (existsSync(fullPath.replace('.json', '-copy.json'))) {
+    unlink(fullPath.replace('.json', '-copy.json'));
   }
 }
 
@@ -116,7 +148,7 @@ function saveToFile(
  * @returns {number} Amount of SOL
  */
 function convertLamportsToSol(lamports) {
-  return lamports / solWeb3.LAMPORTS_PER_SOL;
+  return lamports / LAMPORTS_PER_SOL;
 }
 
 /**
@@ -125,7 +157,7 @@ function convertLamportsToSol(lamports) {
  * @returns {number} Amount of lamports
  */
 function convertSolToLamports(sol) {
-  return sol * solWeb3.LAMPORTS_PER_SOL;
+  return sol * LAMPORTS_PER_SOL;
 }
 
 /**
@@ -161,7 +193,7 @@ function createRandomSeeds(length, num) {
 /**
  * Creates new Keypair and saves to file system
  * @param {number} location choice of location
- * @returns {solWeb3.Keypair} Keypair
+ * @returns {Keypair} Keypair
  */
 function saveNewFSKeyPair(location = 1) {
   let directory;
@@ -174,7 +206,7 @@ function saveNewFSKeyPair(location = 1) {
       directory = MINT_KEYPAIRS_DIR;
       break;
   }
-  const keypair = solWeb3.Keypair.generate();
+  const keypair = Keypair.generate();
   let filename = keypair.publicKey.toString() + '.json'
   saveToFile(Array.from(keypair.secretKey), filename, directory);
   return keypair;
@@ -184,12 +216,12 @@ function saveNewFSKeyPair(location = 1) {
  * Loads a keypair from a file
  * @async
  * @param {string} filename Name of file with keypair
- * @returns {solWeb3.Keypair} Keypair
+ * @returns {Keypair} Keypair
  */
 async function getKeyPairFromFile(filename, directory = WALLET_DIR) {
-  const keypairPath = path.resolve(directory + '\\' + filename);
-  const keypairData = JSON.parse(await fsp.readFile(keypairPath, 'utf-8'));
-  const keypair = solWeb3.Keypair.fromSecretKey(Uint8Array.from(keypairData));
+  const keypairPath = resolve(directory + '\\' + filename);
+  const keypairData = JSON.parse(await readFile(keypairPath, 'utf-8'));
+  const keypair = Keypair.fromSecretKey(Uint8Array.from(keypairData));
   return keypair;
 }
 
@@ -197,12 +229,12 @@ async function getKeyPairFromFile(filename, directory = WALLET_DIR) {
  * Load keypairs from .json files in a directory
  * @async
  * @param {string} directory Location of .json files with keypairs to load. Default is .\wallets\
- * @returns {Array<solWeb3.Keypair>} Array of keypairs
+ * @returns {Array<Keypair>} Array of keypairs
  */
 async function getFSWallets(directory = WALLET_DIR) {
-  const files = await fsp.readdir(directory);
+  const files = await readdir(directory);
   const jsonFiles = files.filter(
-    (file) => path.extname(file).toLowerCase() === '.json'
+    (file) => extname(file).toLowerCase() === '.json'
   );
   const walletPromises = jsonFiles.map(async (file) => {
     return getKeyPairFromFile(file);
@@ -214,7 +246,7 @@ async function getFSWallets(directory = WALLET_DIR) {
 /**
  * Gets SOL balance for wallet keypairs
  * @async
- * @param {Array<solWeb3.Keypair>} walletKeyPairs Array of keypairs
+ * @param {Array<Keypair>} walletKeyPairs Array of keypairs
  * @returns {Array<object>} Array of objects containing a keypair and its balance
  */
 async function getBalances(walletKeyPairs, logToConsole = true) {
@@ -233,14 +265,14 @@ async function getBalances(walletKeyPairs, logToConsole = true) {
 
 /**
  *
- * @param {solWeb3.PublicKey} tokenAccount Public key of token account to close
- * @param {solWeb3.Keypair} destination Wallet to receive reclaimed rent
- * @param {solWeb3.Keypair} authority Wallet that owns token account
+ * @param {PublicKey} tokenAccount Public key of token account to close
+ * @param {Keypair} destination Wallet to receive reclaimed rent
+ * @param {Keypair} authority Wallet that owns token account
  * @returns {string} Transaction Signature
  */
-async function closeAccount(tokenAccount, destination, authority) {
-  const tx = new solWeb3.Transaction().add(
-    splToken.createCloseAccountInstruction(
+async function closeTokenAccount(tokenAccount, destination, authority) {
+  const tx = new Transaction().add(
+    createCloseAccountInstruction(
       tokenAccount,
       destination.publicKey,
       authority.publicKey
@@ -259,7 +291,7 @@ async function closeAccount(tokenAccount, destination, authority) {
 
 /**
  * Create accounts from base account with seed(s)
- * @param {solWeb3.PublicKey} baseAccount Account generating seed
+ * @param {PublicKey} baseAccount Account generating seed
  * @param {number} seedLength Length of seed(s) to be generated
  * @param {number} numberOfAccounts Number of accounts to be created
  * @returns {Array<Object>} Array of objects containing new public keys and associated seed
@@ -267,9 +299,9 @@ async function closeAccount(tokenAccount, destination, authority) {
 async function createSeedAccounts(baseAccount, seedLength, numberOfAccounts) {
   const seeds = createRandomSeeds(seedLength, numberOfAccounts);
   let newAccounts = [];
-  const ID = solWeb3.SystemProgram.programId;
+  const ID = SystemProgram.programId;
   for (let i = 0; i < seeds.length; i++) {
-    const newAccount = await solWeb3.PublicKey.createWithSeed(baseAccount, seeds[i], ID);
+    const newAccount = await PublicKey.createWithSeed(baseAccount, seeds[i], ID);
     newAccounts.push({pubkey: newAccount, seed: seeds[i]});
     console.log(newAccount);
   };
@@ -284,11 +316,11 @@ async function createSeedAccounts(baseAccount, seedLength, numberOfAccounts) {
 
 /**
  * Creates seed accounts with starting balance for a base account
- * @param {solWeb3.Keypair} baseAccount Keypair/wallet of base account
+ * @param {Keypair} baseAccount Keypair/wallet of base account
  * @param {number} seedLength Length of seed to generate
  * @param {number} numberOfAccounts Number of accounts to create
  * @param {number} sol Amount of Sol to transfer to seed accounts
- * @returns {solWeb3.TransactionSignature}
+ * @returns {TransactionSignature}
  */
 async function createSeedAccountWithFunds(
   baseAccount,
@@ -301,24 +333,24 @@ async function createSeedAccountWithFunds(
     seedLength,
     numberOfAccounts
   );
-  let tx = new solWeb3.Transaction();
+  let tx = new Transaction();
   for (let i = 0; i < newAccounts.length; i++) {
     const account = newAccounts[i];
     tx.add(
-      solWeb3.SystemProgram.createAccountWithSeed({
+      SystemProgram.createAccountWithSeed({
         fromPubkey: baseAccount.publicKey,
         newAccountPubkey: account.pubkey,
         basePubkey: baseAccount.publicKey,
         seed: account.seed,
         lamports: convertSolToLamports(sol),
         space: 0,
-        programId: solWeb3.SystemProgram.programId,
+        programId: SystemProgram.programId,
       })
     );
   }
   tx.feePayer = baseAccount.publicKey;
   tx = await addComputeBudgetToTransaction(tx);
-  const result = await solWeb3.sendAndConfirmTransaction(
+  const result = await sendAndConfirmTransaction(
     CONN,
     tx,
     [baseAccount]
@@ -327,12 +359,12 @@ async function createSeedAccountWithFunds(
     const fullPath = `${SEED_DIR.replace('.\\', '')}\\${
       baseAccount.publicKey
     }.json`;
-    let content = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+    let content = JSON.parse(readFileSync(fullPath, 'utf-8'));
     const key = Object.keys(content.createdWithSeed).at(-1);
     const newSeedAccounts = content.createdWithSeed[key];
     delete content.createdWithSeed[key];
     content.createdWithSeedAndFunds[key] = newSeedAccounts;
-    fsp.writeFile(fullPath, stringify(content));
+    writeFile(fullPath, stringify(content));
   }
   return result;
 }
@@ -343,15 +375,15 @@ async function createSeedAccountWithFunds(
 
 /**
  * Helper function to create transfer instruction for a transaction
- * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
- * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {solWeb3.PublicKey} toPubkey Public key receiving transaction
+ * @param {Transaction} txn Transaction to add transfer instruction to
+ * @param {Keypair} fromKeypair Address transaction is sending from
+ * @param {PublicKey} toPubkey Public key receiving transaction
  * @param {number} sol Amount of SOL being transferred
- * @returns {solWeb3.Transaction} Transaction object
+ * @returns {Transaction} Transaction object
  */
 function createAndAddTransferInstruction(txn, fromKeypair, toPubkey, sol) {
   txn.add(
-    solWeb3.SystemProgram.transfer({
+    SystemProgram.transfer({
       fromPubkey: fromKeypair.publicKey,
       toPubkey: toPubkey,
       lamports: convertSolToLamports(sol),
@@ -362,11 +394,11 @@ function createAndAddTransferInstruction(txn, fromKeypair, toPubkey, sol) {
 
 /**
  * Helper function to add 1 or more transfer instructions to a transaction
- * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
- * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {Array<solWeb3.PublicKey>} toPubKeys Public key(s) receiving transaction(s)
+ * @param {Transaction} txn Transaction to add transfer instruction to
+ * @param {Keypair} fromKeypair Address transaction is sending from
+ * @param {Array<PublicKey>} toPubKeys Public key(s) receiving transaction(s)
  * @param {number} sol Amount of SOL being transferred
- * @returns {solWeb3.Transaction} Transaction object
+ * @returns {Transaction} Transaction object
  */
 async function addTransferInstructions(txn, fromKeypair, toPubKeys, sol) {
   toPubKeys.forEach(
@@ -378,23 +410,23 @@ async function addTransferInstructions(txn, fromKeypair, toPubKeys, sol) {
 
 /**
  * Creates Transaction object to transfer SOL from one account to another
- * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {Array<solWeb3.PublicKey>} toPubKeys Public key(s) receiving transaction
+ * @param {Keypair} fromKeypair Address transaction is sending from
+ * @param {Array<PublicKey>} toPubKeys Public key(s) receiving transaction
  * @param {number} sol Amount of SOL being transferred
- * @returns {solWeb3.Transaction} Transaction object
+ * @returns {Transaction} Transaction object
  */
 async function createTXN(fromKeypair, toPubKeys, sol) {
-  let txn = new solWeb3.Transaction();
+  let txn = new Transaction();
   return await addTransferInstructions(txn, fromKeypair, toPubKeys, sol);
 }
 
 /**
  * Helper function to replace transfer instruction for a transaction
- * @param {solWeb3.Transaction} txn Transaction to add transfer instruction to
- * @param {solWeb3.Keypair} fromKeypair Address transaction is sending from
- * @param {solWeb3.Keypair} toKeypair Address receiving transaction
+ * @param {Transaction} txn Transaction to add transfer instruction to
+ * @param {Keypair} fromKeypair Address transaction is sending from
+ * @param {Keypair} toKeypair Address receiving transaction
  * @param {number} sol Amount of SOL being transferred
- * @returns {solWeb3.Transaction} Transaction object
+ * @returns {Transaction} Transaction object
  */
 function replaceTransferInstruction(txn, fromKeypair, toKeypair, sol) {
   txn.instructions.pop();
@@ -404,14 +436,14 @@ function replaceTransferInstruction(txn, fromKeypair, toKeypair, sol) {
 
 /**
  * Creates, sends, and confirms a SOL transfer transaction
- * @param {solWeb3.Keypair} fromKeypair Keypair/wallet transaction is sending from
- * @param {Array<solWeb3.PublicKey>} toPubKeys Public key of address receiving transaction
+ * @param {Keypair} fromKeypair Keypair/wallet transaction is sending from
+ * @param {Array<PublicKey>} toPubKeys Public key of address receiving transaction
  * @param {number} sol Amount of SOL being transferred
  * @returns
  */
 async function transferSol(fromKeypair, toPubKeys, sol) {
   const transferTransaction = await createTXN(fromKeypair, toPubKeys, sol);
-  const result = await solWeb3.sendAndConfirmTransaction(
+  const result = await sendAndConfirmTransaction(
     CONN,
     transferTransaction,
     [fromKeypair]
@@ -421,7 +453,7 @@ async function transferSol(fromKeypair, toPubKeys, sol) {
 
 /**
  * Calculates estimated transaction fee for a Transaction object
- * @param {solWeb3.Transaction} transaction
+ * @param {Transaction} transaction
  * @returns {number} Estimated fee for transaction, returns -1 if null
  */
 async function calculateTXFee(transaction) {
@@ -442,18 +474,18 @@ async function calculateTXFee(transaction) {
 
 /**
  * Adds compute budget program instruction to a transaction
- * @param {solWeb3.Transaction} tx Transaction to compute budget for
+ * @param {Transaction} tx Transaction to compute budget for
  * @returns Transaction with compute budget program instruction
  */
 async function addComputeBudgetToTransaction(tx) {
-  let budgetIx = solWeb3.ComputeBudgetProgram.setComputeUnitLimit({
+  let budgetIx = ComputeBudgetProgram.setComputeUnitLimit({
     units: 1.4e6,
   });
-  let budgetTx = new solWeb3.Transaction().add(budgetIx, ...tx.instructions);
+  let budgetTx = new Transaction().add(budgetIx, ...tx.instructions);
   budgetTx.feePayer = tx.feePayer;
   const computeBudget = (await CONN.simulateTransaction(budgetTx)).value
     .unitsConsumed;
-  budgetTx.instructions[0] = solWeb3.ComputeBudgetProgram.setComputeUnitLimit({
+  budgetTx.instructions[0] = ComputeBudgetProgram.setComputeUnitLimit({
     units: computeBudget + 100,
   });
   return budgetTx;
@@ -461,25 +493,25 @@ async function addComputeBudgetToTransaction(tx) {
 
 /**
  * Transfers Sol from a Seed account
- * @param {solWeb3.Keypair} baseAccount Base account for seed account
- * @param {solWeb3.PublicKey} fromPubKey Public Key of account sending Sol
+ * @param {Keypair} baseAccount Base account for seed account
+ * @param {PublicKey} fromPubKey Public Key of account sending Sol
  * @param {string} seed Seed string
- * @param {solWeb3.PublicKey} toPubKey
+ * @param {PublicKey} toPubKey
  * @param {number} amount Amount of Sol to send
- * @returns {solWeb3.TransactionSignature}
+ * @returns {TransactionSignature}
  */
 async function transferSolFromSeedAccount (baseAccount, fromPubKey, seed, toPubKey, amount) {
-  const tx = new solWeb3.Transaction().add(
-    solWeb3.SystemProgram.transfer({
+  const tx = new Transaction().add(
+    SystemProgram.transfer({
       basePubkey: baseAccount.publicKey,
       fromPubkey: fromPubKey,
       lamports: convertSolToLamports(amount),
-      programId: solWeb3.SystemProgram.programId,
+      programId: SystemProgram.programId,
       seed: seed,
       toPubkey: toPubKey
     })
   );
-  const result = await solWeb3.sendAndConfirmTransaction(CONN, tx, [baseAccount]);
+  const result = await sendAndConfirmTransaction(CONN, tx, [baseAccount]);
   console.log(`tx hash: ${result}`);
   return result;
 }
@@ -492,19 +524,19 @@ async function transferSolFromSeedAccount (baseAccount, fromPubKey, seed, toPubK
 
 /**
  * Creates a Token-2022 mint
- * @param {solWeb3.Keypair} payer
- * @param {solWeb3.Keypair} mintAuthority
- * @param {solWeb3.Keypair} updateAuthority
+ * @param {Keypair} payer
+ * @param {Keypair} mintAuthority
+ * @param {Keypair} updateAuthority
  * @param {String} name
  * @param {String} symbol
  * @param {String} uri
  * @param {String} description
  * @param {number} decimals
  * @param {boolean} freeze
- * @param {solWeb3.Keypair} freezeAuthority
+ * @param {Keypair} freezeAuthority
  * @param {boolean} close
- * @param {solWeb3.Keypair} closeAuthority
- * @returns {solWeb3.TransactionSignature}
+ * @param {Keypair} closeAuthority
+ * @returns {TransactionSignature}
  */
 async function createToken2022(
   payer,
@@ -520,7 +552,7 @@ async function createToken2022(
   close = false,
   closeAuthority = mintAuthority
 ) {
-  CONN = new solWeb3.Connection(solWeb3.clusterApiUrl('devnet'));
+  CONN = new Connection(clusterApiUrl('devnet'));
   const mintKeypair = saveNewFSKeyPair(2);
   const mint = mintKeypair.publicKey;
   const metaData = {
@@ -532,50 +564,50 @@ async function createToken2022(
     additionalMetadata: [['description', description]],
   };
 
-  const metadataExtension = splToken.TYPE_SIZE + splToken.LENGTH_SIZE;
-  const metadataLen = meta.pack(metaData).length;
-  const extensions = [splToken.ExtensionType.MetadataPointer];
+  const metadataExtension = TYPE_SIZE + LENGTH_SIZE;
+  const metadataLen = pack(metaData).length;
+  const extensions = [ExtensionType.MetadataPointer];
   if (close) {
-    extensions.push(splToken.ExtensionType.MintCloseAuthority);
+    extensions.push(ExtensionType.MintCloseAuthority);
   }
-  const mintLen = splToken.getMintLen(extensions);
+  const mintLen = getMintLen(extensions);
   const lamports = await CONN.getMinimumBalanceForRentExemption(
     mintLen + metadataExtension + metadataLen
   );
 
-  const createAccountInstruction = solWeb3.SystemProgram.createAccount({
+  const createAccountInstruction = SystemProgram.createAccount({
     fromPubkey: payer.publicKey,
     newAccountPubkey: mint,
     space: mintLen,
     lamports,
-    programId: splToken.TOKEN_2022_PROGRAM_ID,
+    programId: TOKEN_2022_PROGRAM_ID,
   });
 
   const initializeMetadataPointerInstruction =
-    splToken.createInitializeMetadataPointerInstruction(
+    createInitializeMetadataPointerInstruction(
       mint,
       updateAuthority.publicKey,
       mint,
-      splToken.TOKEN_2022_PROGRAM_ID
+      TOKEN_2022_PROGRAM_ID
     );
 
   const initializeMintcloseAuthorityInstruction =
-    splToken.createInitializeMintCloseAuthorityInstruction(
+    createInitializeMintCloseAuthorityInstruction(
       mint,
       closeAuthority.publicKey,
-      splToken.TOKEN_2022_PROGRAM_ID
+      TOKEN_2022_PROGRAM_ID
     );
 
-  const initializeMintInstruction = splToken.createInitializeMintInstruction(
+  const initializeMintInstruction = createInitializeMintInstruction(
     mint,
     decimals,
     mintAuthority.publicKey,
     freeze ? freezeAuthority.publicKey : null,
-    splToken.TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID
   );
 
-  const initializeMetadataInstruction = splToken.createInitializeInstruction({
-    programId: splToken.TOKEN_2022_PROGRAM_ID,
+  const initializeMetadataInstruction = createInitializeInstruction({
+    programId: TOKEN_2022_PROGRAM_ID,
     metadata: mint,
     updateAuthority: updateAuthority.publicKey,
     mint: mint,
@@ -585,7 +617,7 @@ async function createToken2022(
     uri: metaData.uri,
   });
 
-  const transaction = new solWeb3.Transaction().add(
+  const transaction = new Transaction().add(
     createAccountInstruction,
     initializeMetadataPointerInstruction,
     initializeMintcloseAuthorityInstruction,
@@ -593,7 +625,7 @@ async function createToken2022(
     initializeMetadataInstruction
   );
 
-  const transactionSignature = await solWeb3.sendAndConfirmTransaction(
+  const transactionSignature = await sendAndConfirmTransaction(
     CONN,
     transaction,
     [payer, mintKeypair]
@@ -605,14 +637,14 @@ async function createToken2022(
 
 /**
  * Mints tokens from Token2022 program to a wallet
- * @param {solWeb3.PublicKey} mint Mint public key
- * @param {solWeb3.Keypair} authority Mint authority keypair
- * @param {solWeb3.Keypair} destination Target wallet
+ * @param {PublicKey} mint Mint public key
+ * @param {Keypair} authority Mint authority keypair
+ * @param {Keypair} destination Target wallet
  * @param {number} amount Amount of token to mint
- * @returns {solWeb3.TransactionSignature}
+ * @returns {TransactionSignature}
  */
 async function mintToken2022(mint, authority, destination, amount) {
- const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+ const tokenAccount = await getOrCreateAssociatedTokenAccount(
   CONN,
   destination,
   mint,
@@ -620,10 +652,10 @@ async function mintToken2022(mint, authority, destination, amount) {
   false,
   'confirmed',
   {},
-  splToken.TOKEN_2022_PROGRAM_ID
+  TOKEN_2022_PROGRAM_ID
  );
  amount = convertSolToLamports(amount);
- const signature = await splToken.mintTo(
+ const signature = await mintTo(
   CONN,
   destination,
   mint,
@@ -632,7 +664,7 @@ async function mintToken2022(mint, authority, destination, amount) {
   amount,
   [],
   {},
-  splToken.TOKEN_2022_PROGRAM_ID
+  TOKEN_2022_PROGRAM_ID
  );
  const result = {
   mint: mint,
@@ -646,10 +678,10 @@ return result;
 
 /**
  * Creates new mint, associated token account, and mints tokens
- * @param {solWeb3.Keypair} walletKeypair Payer of fees
- * @param {solWeb3.PublicKey} freezeAuthority Public Key of freeze authority
+ * @param {Keypair} walletKeypair Payer of fees
+ * @param {PublicKey} freezeAuthority Public Key of freeze authority
  * @param {number} decimals
- * @param {solWeb3.keypair||undefined} newKeyPair Public key of mint, default to undefined for new random key
+ * @param {Keypair|undefined} newKeyPair Public key of mint, default to undefined for new random key
  * @param {object} opt Options
  * @param {number} amount Amount of tokens to be minted
  * @returns {object}
@@ -662,7 +694,7 @@ async function createAndMintOriginalToken(
   opt = undefined,
   amount = 1000000000
 ) {
-  const mint = await splToken.createMint(
+  const mint = await createMint(
     CONN,
     walletKeypair,
     walletKeypair.publicKey,
@@ -670,15 +702,15 @@ async function createAndMintOriginalToken(
     decimals,
     newKeyPair,
     opt,
-    splToken.TOKEN_PROGRAM_ID
+    TOKEN_PROGRAM_ID
   );
-  const tokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  const tokenAccount = await getOrCreateAssociatedTokenAccount(
     CONN,
     walletKeypair,
     mint,
     walletKeypair.publicKey
   );
-  const signature = await splToken.mintTo(
+  const signature = await mintTo(
     CONN,
     walletKeypair,
     mint,
@@ -693,7 +725,7 @@ async function createAndMintOriginalToken(
   };
   try {
     const jsonResult = stringify(result);
-    await fsp.writeFile(
+    await writeFile(
       `${MINT_DIR.slice(2)}\\${result.mint.toString()}.json`,
       jsonResult,
     );
@@ -705,14 +737,14 @@ async function createAndMintOriginalToken(
 
 /**
  *
- * @param {solWeb3.PublicKey} mintAddress Public key of token mint
- * @returns {splToken.Mint} Mint info
+ * @param {PublicKey} mintAddress Public key of token mint
+ * @returns {import('@solana/spl-token').Mint} Mint info
  */
 async function getTokenInfo(mintAddress, logToConsole = true) {
-  const mintInfo = await splToken.getMint(
+  const mintInfo = await getMint(
     CONN,
     mintAddress,
-    splToken.TOKEN_PROGRAM_ID
+    TOKEN_PROGRAM_ID
   );
   if (logToConsole) console.log('Mint info:', stringify(mintInfo));
   return mintInfo;
@@ -720,11 +752,11 @@ async function getTokenInfo(mintAddress, logToConsole = true) {
 
 /**
  * Get all token accounts for an owner of a given program
- * @param {solWeb3.PublicKey} owner Public key of owner
- * @param {solWeb3.PublicKey} program Public key of program
+ * @param {PublicKey} owner Public key of owner
+ * @param {PublicKey} program Public key of program
  * @returns Response and context
  */
-async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
+async function getTokenAccounts(owner, program = TOKEN_PROGRAM_ID) {
   return await CONN.getParsedTokenAccountsByOwner(owner, {
     programId: program,
   });
@@ -732,12 +764,12 @@ async function getTokenAccounts(owner, program = splToken.TOKEN_PROGRAM_ID) {
 
 /**
  * Updates 1 or more authority types for a token mint
- * @param {solWeb3.PublicKey} mint Mint public key
- * @param {solWeb3.Keypair} payer Payer wallet
- * @param {solWeb3.Keypair} currentAuthority Current authority wallet
- * @param {solWeb3.PublicKey||null} newAuthority New authority public key or null
- * @param {Array<splToken.AuthorityType>} authorityTypes Array of authority types to update
- * @returns {solWeb3.TransactionSignature} Transaction signature
+ * @param {PublicKey} mint Mint public key
+ * @param {Keypair} payer Payer wallet
+ * @param {Keypair} currentAuthority Current authority wallet
+ * @param {PublicKey|null} newAuthority New authority public key or null
+ * @param {Array<AuthorityType>} authorityTypes Array of authority types to update
+ * @returns {TransactionSignature} Transaction signature
  */
 async function updateAuthority(
   mint,
@@ -746,20 +778,20 @@ async function updateAuthority(
   newAuthority,
   authorityTypes
 ) {
-  const tx = new solWeb3.Transaction();
+  const tx = new Transaction();
   authorityTypes.forEach(type => {
     tx.add(
-      splToken.createSetAuthorityInstruction(
+      createSetAuthorityInstruction(
         mint,
         currentAuthority.publicKey,
         type,
         newAuthority,
         [],
-        splToken.TOKEN_2022_PROGRAM_ID
+        TOKEN_2022_PROGRAM_ID
       )
     );
   });
-  const signature = await solWeb3.sendAndConfirmTransaction(
+  const signature = await sendAndConfirmTransaction(
     CONN,
     tx,
     payer == currentAuthority ? [payer] : [payer, currentAuthority]
@@ -770,12 +802,12 @@ async function updateAuthority(
 
 /**
  * Updates metadata for Token2022
- * @param {solWeb3.Keypair} payer Fee payer
- * @param {solWeb3.PublicKey} mint Mint public key
- * @param {solWeb3.Keypair||solWeb3.PublicKey} updateAuthority Update authority
+ * @param {Keypair} payer Fee payer
+ * @param {PublicKey} mint Mint public key
+ * @param {Keypair|PublicKey} updateAuthority Update authority
  * @param {string} field field to update
  * @param {string} value value to update with
- * @returns {solWeb3.TransactionSignature}
+ * @returns {TransactionSignature}
  */
 async function updateToken2022Metadata(
   payer,
@@ -784,7 +816,7 @@ async function updateToken2022Metadata(
   field,
   value
 ) {
-  const result = await splToken.tokenMetadataUpdateFieldWithRentTransfer(
+  const result = await tokenMetadataUpdateFieldWithRentTransfer(
     CONN,
     payer,
     mint,
@@ -798,22 +830,22 @@ async function updateToken2022Metadata(
 
 /**
  * Sends tokens between wallets
- * @param {solWeb3.Keypair} fromWallet Wallet of sender
- * @param {solWeb3.PublicKey} mint Public key of token mint
- * @param {solWeb3.PublicKey} toWallet Public key of wallet to receive token
- * @param {number||string} amount Amount of token to send
- * @param {solWeb3.PublicKey} program Public key of program that owns token
- * @returns {solWeb3.TransactionSignature}
+ * @param {Keypair} fromWallet Wallet of sender
+ * @param {PublicKey} mint Public key of token mint
+ * @param {PublicKey} toWallet Public key of wallet to receive token
+ * @param {number|string} amount Amount of token to send
+ * @param {PublicKey} program Public key of program that owns token
+ * @returns {TransactionSignature}
  */
 async function sendToken(
   fromWallet,
   mint,
   toWallet,
   amount,
-  program = splToken.TOKEN_2022_PROGRAM_ID,
+  program = TOKEN_2022_PROGRAM_ID,
   logToConsole = true
 ) {
-  const fromTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  const fromTokenAccount = await getOrCreateAssociatedTokenAccount(
     CONN,
     fromWallet,
     mint,
@@ -823,7 +855,7 @@ async function sendToken(
     {},
     program
   );
-  const toTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  const toTokenAccount = await getOrCreateAssociatedTokenAccount(
     CONN,
     toWallet,
     mint,
@@ -840,7 +872,7 @@ async function sendToken(
   } else {
     amount = convertSolToLamports(amount);
   }
-  const signature = await splToken.transfer(
+  const signature = await transfer(
     CONN,
     fromWallet,
     fromTokenAccount.address,
@@ -857,15 +889,15 @@ async function sendToken(
 
 /**
  * Close all token accounts of a given program ID for a wallet
- * @param {solWeb3.Keypair} owner Wallet that owns token accounts
+ * @param {Keypair} owner Wallet that owns token accounts
  * @param {boolean} burn Burn all tokens in accounts with non-zero balance
- * @param {solWeb3.PublicKey} program Program ID of accounts to search for
+ * @param {PublicKey} program Program ID of accounts to search for
  * @param {boolean} logToConsole Output success results to console
  */
 async function closeAllTokenAccounts(
   owner,
   burn = true,
-  program = splToken.TOKEN_PROGRAM_ID,
+  program = TOKEN_PROGRAM_ID,
   logToConsole = true
 ) {
   let tokenAccounts = (await getTokenAccounts(owner.publicKey, program)).value;
@@ -880,12 +912,12 @@ async function closeAllTokenAccounts(
   tokenAccounts.forEach(async (tokenAccount) => {
     try {
       if (tokenAccount.account.data.parsed.info.tokenAmount.uiAmount > 0) {
-        const mint = new solWeb3.PublicKey(
+        const mint = new PublicKey(
           tokenAccount.account.data.parsed.info.mint
         );
         await burnTokens(owner, tokenAccount.pubkey, mint, owner, 'all', false);
       }
-      await closeAccount(tokenAccount.pubkey, owner, owner);
+      await closeTokenAccount(tokenAccount.pubkey, owner, owner);
     } catch (error) {
       console.log(error);
       ++failures;
@@ -903,22 +935,22 @@ async function closeAllTokenAccounts(
 
 /**
  *
- * @param {solWeb3.Keypair} payer Fee payer
- * @param {solWeb3.PublicKey} mint Public key of token mint
- * @param {solWeb3.KeyPair} owner Public key/wallet of token account owner
+ * @param {Keypair} payer Fee payer
+ * @param {PublicKey} mint Public key of token mint
+ * @param {KeyPair} owner Public key/wallet of token account owner
  * @param {number|string} amount Amount of tokens to burn
- * @param {solWeb3.PublicKey} program Public key of program that owns token
- * @returns {solWeb3.TransactionSignature}
+ * @param {PublicKey} program Public key of program that owns token
+ * @returns {TransactionSignature}
  */
 async function burnTokens(
   payer,
   mint,
   owner,
   amount,
-  program = splToken.TOKEN_2022_PROGRAM_ID,
+  program = TOKEN_2022_PROGRAM_ID,
   logToConsole = true
 ) {
-  const tokenAccount = await splToken.getAssociatedTokenAddress(
+  const tokenAccount = await getAssociatedTokenAddress(
     mint, owner.publicKey, false, program
   );
   const ataBalance = await CONN.getTokenAccountBalance(tokenAccount);
@@ -926,7 +958,7 @@ async function burnTokens(
   if (typeof amount === 'string' && amount.toLowerCase().trim() === 'all') {
     amount = Number(ataBalance.value.amount);
   }
-  let signature = await splToken.burnChecked(
+  let signature = await burnChecked(
     CONN,
     payer,
     tokenAccount,
@@ -936,7 +968,7 @@ async function burnTokens(
     decimals,
     [],
     {},
-    splToken.TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID
   );
   if (logToConsole) console.log('Burn tokens hash:', signature);
   return signature;
@@ -944,11 +976,11 @@ async function burnTokens(
 
 /**
  * Closes Token2022 program mint account
- * @param {solWeb3.Keypair} payer Payer of transaction fees
- * @param {solWeb3.PublicKey} account Mint account to close
- * @param {solWeb3.PublicKey} destination Account to reclaim lamports
- * @param {solWeb3.Keypair} authority Close authority of mint
- * @returns {solWeb3.TransactionSignature}
+ * @param {Keypair} payer Payer of transaction fees
+ * @param {PublicKey} account Mint account to close
+ * @param {PublicKey} destination Account to reclaim lamports
+ * @param {Keypair} authority Close authority of mint
+ * @returns {TransactionSignature}
  */
 async function closeToken2022MintAccount(
   payer,
@@ -956,7 +988,7 @@ async function closeToken2022MintAccount(
   destination,
   authority
 ) {
-  const signature = await splToken.closeAccount(
+  const signature = await closeAccount(
     CONN,
     payer,
     account,
@@ -964,7 +996,7 @@ async function closeToken2022MintAccount(
     authority,
     [],
     {},
-    splToken.TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID
   );
   console.log('Close account signature:', signature);
   return signature;
@@ -985,7 +1017,7 @@ async function main() {
   // saveNewFSKeyPair()
 
   // TRANSFER SOL
-  // let result = await transferSol(mainWallet, [new solWeb3.PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')], 5);
+  // let result = await transferSol(mainWallet, [new PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')], 5);
   // console.log(result);
 
   // MINT TOKEN
@@ -999,11 +1031,11 @@ async function main() {
   //   mainWallet,
   //   mainWallet,
   //   mainWallet,
-  //   'TEST',
-  //   'TEST',
-  //   'https://pastebin.com/raw/eEvSrZ61',
-  //   'Test',
-  //   9,
+  //   'POTATO',
+  //   'POTATO',
+  //   'https://bafybeiblxkv766rkkdyt2l7fjqn3rkv4tmshqpdbo57ratmsn5kcbzibum.ipfs.w3s.link/ipfs/bafybeiblxkv766rkkdyt2l7fjqn3rkv4tmshqpdbo57ratmsn5kcbzibum/potato.json',
+  //   'Potato',
+  //   2,
   //   true,
   //   mainWallet,
   //   true,
@@ -1011,8 +1043,28 @@ async function main() {
   // );
   // console.log(result);
 
+  // const mint = new PublicKey('4GGovtKKRbD9gRmqWnoMe7XurUKc1Lc12PscqNVvTj8h');
+  // let result = await mintToken2022(mint, mainWallet, mainWallet, 2.005);
+
+  // UPDATE METADATA
+  // let result = await updateToken2022Metadata(
+  //   mainWallet,
+  //   new PublicKey('Cfg9Bwzv9Wdh3pec3hGCP5yxDpZ8EEqFy7P1zZ2FEu6g'),
+  //   mainWallet,
+  //   'uri',
+  //   'https://bafybeif7nnqckzi2rerhclfsgqowz5mhmqffijgprr7rfvgbhohhpwszdu.ipfs.w3s.link/8PRyP8tgtyFAPrAJjdG9dS91oDiZ71SLr8qFkrSDRGKv.json'
+  // );
+
+  // CLOSE MINT ACCOUNT
+  // let result = await closeToken2022MintAccount(
+  //   mainWallet,
+  //   new PublicKey('Cfg9Bwzv9Wdh3pec3hGCP5yxDpZ8EEqFy7P1zZ2FEu6g'),
+  //   mainWallet.publicKey,
+  //   mainWallet
+  // );
+
   // UPDATE AUTHORITY
-  // const mint = new solWeb3.PublicKey(
+  // const mint = new PublicKey(
   //   '497jWQUNSLBjm9YUsix7SMajLSNp23cBN7WytrAFfByd'
   // );
   // let result = await updateAuthority(
@@ -1020,39 +1072,39 @@ async function main() {
   //   secondWallet,
   //   mainWallet,
   //   secondWallet.publicKey,
-  //   [splToken.AuthorityType.MintTokens]
+  //   [AuthorityType.MintTokens]
   // );
   // console.log(result);
 
 
-  // const seedTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  // const seedTokenAccount = await getOrCreateAssociatedTokenAccount(
   //   CONN,
   //   mainWallet,
-  //   new solWeb3.PublicKey('4xA38i9HKnpkcpyrfpYmgfq2bTv5XiAugVuatBigKH8D'),
-  //   new solWeb3.PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')
+  //   new PublicKey('4xA38i9HKnpkcpyrfpYmgfq2bTv5XiAugVuatBigKH8D'),
+  //   new PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')
   // );
   // console.log(seedTokenAccount);
 
   // TRANSFER TOKEN
-  // const mint = new solWeb3.PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
+  // const mint = new PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
   // let result = await sendToken(secondWallet, mint, mainWallet, 1);
   // console.log(result);
 
   // GET TOKEN INFO
-  // const mintAddress = new solWeb3.PublicKey(
+  // const mintAddress = new PublicKey(
   //   'ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b'
   // );
   // getTokenInfo(mintAddress)
 
   // ADD METADATA
-  // const mint = new solWeb3.PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
+  // const mint = new PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
   // const wallet = await getKeyPairFromFile('id.json');
   // let result = await addTokenMetadata(mint, wallet, wallet, wallet, 'TEST', 'TEST', 'https://pastebin.com/raw/2p2K6k1V', 420);
   // console.log(result);
 
   // CLOSE TOKEN ACCOUNT
-  // const mint = new solWeb3.PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
-  // const ataToClose = await splToken.getOrCreateAssociatedTokenAccount(
+  // const mint = new PublicKey('ZkBzQBxXyVY4jmwVDnb3wnyezVfqbFaDDKnpjHDVn4b');
+  // const ataToClose = await getOrCreateAssociatedTokenAccount(
   //   CONN, mainWallet, mint, mainWallet.publicKey
   // );
   // console.log(ataToClose.address.toString());
@@ -1060,10 +1112,13 @@ async function main() {
   // console.log(result);
 
   // BURN TOKENS
-  // const tokenAcc = await splToken.getOrCreateAssociatedTokenAccount(
-  //   CONN, mainWallet, mintAddress, mainWallet.publicKey
+  // const mintAddress = new PublicKey('4GGovtKKRbD9gRmqWnoMe7XurUKc1Lc12PscqNVvTj8h');
+  // let result = await burnTokens(
+  //   mainWallet,
+  //   mintAddress,
+  //   mainWallet,
+  //   'all'
   // );
-  // let result = await burnTokens(mainWallet, tokenAcc.address, mintAddress, mainWallet, 'all');
   // console.log(result);
 
   // GET TOKEN ACCOUNTS
@@ -1078,7 +1133,7 @@ async function main() {
   // const newAccount = await createSeedAccountWithFunds(mainWallet, 10, 1, 0.1);
 
   // TRANSFER SOL FROM SEED ACCOUNT
-  // const fromPubKey = new solWeb3.PublicKey('8ybYihLqh8CmE2YAL3R3bqg3Z3P8seUH2oAxk6vKju8S');
+  // const fromPubKey = new PublicKey('8ybYihLqh8CmE2YAL3R3bqg3Z3P8seUH2oAxk6vKju8S');
   // const seed = `'!_S1KGFgj`;
   // await transferSolFromSeedAccount(mainWallet, fromPubKey, seed, secondWallet, 0.1)
 
@@ -1087,13 +1142,13 @@ async function main() {
   // let pk;
   // while (!onCurve) {
   //   pk = await createSeedAccounts(mainWallet, 10, 1)[0];
-  //   onCurve = solWeb3.PublicKey.isOnCurve(pk);
+  //   onCurve = PublicKey.isOnCurve(pk);
   // }
-  // const seedTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
+  // const seedTokenAccount = await getOrCreateAssociatedTokenAccount(
   //   CONN,
   //   mainWallet,
-  //   new solWeb3.PublicKey('4xA38i9HKnpkcpyrfpYmgfq2bTv5XiAugVuatBigKH8D'),
-  //   new solWeb3.PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')
+  //   new PublicKey('4xA38i9HKnpkcpyrfpYmgfq2bTv5XiAugVuatBigKH8D'),
+  //   new PublicKey('2s4jgexJbLAy81MXt3xQ5Wi6LFJG82ppRobqhSBk2zPr')
   // );
   // console.log(seedTokenAccount);
 }
