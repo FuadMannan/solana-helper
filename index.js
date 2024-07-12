@@ -942,6 +942,34 @@ async function burnTokens(
   return signature;
 }
 
+/**
+ * Closes Token2022 program mint account
+ * @param {solWeb3.Keypair} payer Payer of transaction fees
+ * @param {solWeb3.PublicKey} account Mint account to close
+ * @param {solWeb3.PublicKey} destination Account to reclaim lamports
+ * @param {solWeb3.Keypair} authority Close authority of mint
+ * @returns {solWeb3.TransactionSignature}
+ */
+async function closeToken2022MintAccount(
+  payer,
+  account,
+  destination,
+  authority
+) {
+  const signature = await splToken.closeAccount(
+    CONN,
+    payer,
+    account,
+    destination,
+    authority,
+    [],
+    {},
+    splToken.TOKEN_2022_PROGRAM_ID
+  );
+  console.log('Close account signature:', signature);
+  return signature;
+}
+
 async function main() {
   setConnection(/* Enter Choice */);
   const walletKeyPairs = await getFSWallets();
