@@ -797,11 +797,12 @@ async function updateToken2022Metadata(
 }
 
 /**
- *
+ * Sends tokens between wallets
  * @param {solWeb3.Keypair} fromWallet Wallet of sender
  * @param {solWeb3.PublicKey} mint Public key of token mint
  * @param {solWeb3.PublicKey} toWallet Public key of wallet to receive token
- * @param {number} amount Amount of token to send
+ * @param {number||string} amount Amount of token to send
+ * @param {solWeb3.PublicKey} program Public key of program that owns token
  * @returns {solWeb3.TransactionSignature}
  */
 async function sendToken(
@@ -809,27 +810,46 @@ async function sendToken(
   mint,
   toWallet,
   amount,
+  program = splToken.TOKEN_2022_PROGRAM_ID,
   logToConsole = true
 ) {
   const fromTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
     CONN,
     fromWallet,
     mint,
-    fromWallet.publicKey
+    fromWallet.publicKey,
+    false,
+    'confirmed',
+    {},
+    program
   );
   const toTokenAccount = await splToken.getOrCreateAssociatedTokenAccount(
     CONN,
     toWallet,
     mint,
-    toWallet.publicKey
+    toWallet.publicKey,
+    false,
+    'confirmed',
+    {},
+    program
   );
+  if (typeof amount == 'string' && amount == 'all') {
+    amount = Number(
+      (await CONN.getTokenAccountBalance(fromTokenAccount.address)).value.amount
+    );
+  } else {
+    amount = convertSolToLamports(amount);
+  }
   const signature = await splToken.transfer(
     CONN,
     fromWallet,
     fromTokenAccount.address,
     toTokenAccount.address,
     fromWallet.publicKey,
-    convertSolToLamports(amount)
+    amount,
+    [],
+    {},
+    program
   );
   if (logToConsole) console.log(`transaction signature: ${signature}`);
   return signature;
