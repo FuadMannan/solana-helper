@@ -904,43 +904,42 @@ async function closeAllTokenAccounts(
 /**
  *
  * @param {solWeb3.Keypair} payer Fee payer
- * @param {solWeb3.PublicKey} tokenAccount Public key of token account
  * @param {solWeb3.PublicKey} mint Public key of token mint
- * @param {solWeb3.PublicKey||solWeb3.KeyPair} owner Public key/wallet of token account owner
- * @param {number||string} amount Amount of tokens to burn
+ * @param {solWeb3.KeyPair} owner Public key/wallet of token account owner
+ * @param {number|string} amount Amount of tokens to burn
+ * @param {solWeb3.PublicKey} program Public key of program that owns token
+ * @returns {solWeb3.TransactionSignature}
  */
 async function burnTokens(
   payer,
-  tokenAccount,
   mint,
   owner,
   amount,
+  program = splToken.TOKEN_2022_PROGRAM_ID,
   logToConsole = true
 ) {
-  const mintInfo = await getTokenInfo(mint, false);
-  const decimals = mintInfo.decimals;
-  let newAmount = amount;
-  if (typeof amount === 'string') {
-    if (amount.toLowerCase().trim() === 'all') {
-      newAmount = (await CONN.getTokenAccountBalance(tokenAccount)).value
-        .uiAmount;
-    }
-    if (!isNaN(Number(amount))) {
-      newAmount = Number(amount);
-    }
+  const tokenAccount = await splToken.getAssociatedTokenAddress(
+    mint, owner.publicKey, false, program
+  );
+  const ataBalance = await CONN.getTokenAccountBalance(tokenAccount);
+  const decimals = ataBalance.value.decimals;
+  if (typeof amount === 'string' && amount.toLowerCase().trim() === 'all') {
+    amount = Number(ataBalance.value.amount);
   }
-  newAmount *= 10 ** decimals;
-  let tx = await splToken.burnChecked(
+  let signature = await splToken.burnChecked(
     CONN,
     payer,
     tokenAccount,
     mint,
     owner,
-    newAmount,
-    decimals
+    amount,
+    decimals,
+    [],
+    {},
+    splToken.TOKEN_2022_PROGRAM_ID
   );
-  if (logToConsole) console.log('Burn tokens hash:', tx);
-  return tx;
+  if (logToConsole) console.log('Burn tokens hash:', signature);
+  return signature;
 }
 
 async function main() {
